@@ -209,10 +209,10 @@ export default function App() {
     <div className={`min-h-screen flex ${activeTheme.bg} transition-colors duration-500 font-sans h-screen overflow-hidden`}>
       {/* Sol Menü (Sidebar) */}
       <div 
-        className={`${sidebarOpen ? 'w-80' : 'w-0'} flex flex-col ${activeTheme.sidebarBg} border-r border-inherit/40 transition-all duration-300 overflow-hidden relative z-20`}
+        className={`${sidebarOpen ? 'w-80' : 'w-0'} flex flex-col ${activeTheme.sidebarBg} border-r border-inherit/30 transition-all duration-300 overflow-hidden relative z-20`}
       >
         {/* Sidebar Header */}
-        <div className="p-5 border-b border-inherit/40 flex items-center justify-between">
+        <div className="h-20 px-5 border-b border-inherit/30 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-9 h-9 rounded-xl ${activeTheme.accent} flex items-center justify-center font-bold text-xl shadow-md transition-transform hover:rotate-6`}>
               H
