@@ -707,6 +707,7 @@ export default function App() {
         <main className="flex-1 p-6 md:p-8 overflow-hidden flex flex-col justify-center items-center">
           <div className="w-full max-w-4xl flex-1 flex flex-col relative">
             <textarea
+              id="editor-textarea"
               ref={textareaRef}
               key={activeId}
               defaultValue={activeDoc.content}
