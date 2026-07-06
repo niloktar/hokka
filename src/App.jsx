@@ -1,272 +1,232 @@
-import { useState, useEffect, useRef } from 'react';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
-import { TextAreaBinding } from 'y-textarea';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const INITIAL_DOCUMENTS = [
   {
     id: '1',
-    icon: '🖋️',
-    title: 'Yeni Bir Başlangıç',
-    content: 'Bu, React ve Tailwind CSS v4 ile geliştirilmiş sevimli ve modern bir metin yazma aracıdır.\n\nÖzellikler:\n- 🚀 Sıfır yapılandırmalı Tailwind CSS v4 entegrasyonu\n- 🎨 Sevimli çalışma temaları (Şeftali Düşü, Matcha Latte, Lavanta Gecesi, Yulaf & Kahve)\n- 📂 Otomatik yerel kayıt (LocalStorage)\n- 📊 Kelime hedefi sayacı ve gerçek zamanlı istatistikler\n- 🔍 Arama ve filtreleme\n- 🍭 İnteraktif emoji seçici\n- 🔮 Google Docs tarzı gerçek zamanlı işbirliği (Collab) desteği\n\nYazmaya başlamak için burayı temizleyebilir veya sol üstteki "+" butonuna basarak yeni bir sayfa açabilirsiniz. Keyifli yazmalar! ✨',
+    title: 'Yeni Bir Başlangıç 🖋️',
+    content: '<p>Bu, <strong>Hokka</strong> editörüne hoş geldiniz! Üstteki araç çubuğu ile metninizi biçimlendirebilirsiniz.</p><p><br></p><p>Özellikler:</p><ul><li>🚀 Font ailesi seçimi</li><li>🔠 Font boyutu ayarlama</li><li><strong>Kalın</strong>, <em>italik</em>, <u>altı çizili</u>, <s>üstü çizili</s> metin stilleri</li><li>🎨 Farklı çalışma temaları</li><li>📂 Otomatik kayıt (LocalStorage)</li></ul><p><br></p><p>Yazmaya başlamak için burayı temizleyebilir veya sol üstteki <strong>+</strong> butonuna basarak yeni bir belge açabilirsiniz.</p>',
     updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
   },
   {
     id: '2',
-    icon: '💡',
-    title: 'Karalama Defteri',
-    content: 'Harika fikirler genellikle basit karalamalarla başlar.\n\n- Proje fikri: Sevimli bir Markdown editörü.\n- Tasarım: Yuvarlak köşeler, pofuduk butonlar, yumuşak pastel renkler.\n- Teknolojiler: Vite + React + Tailwind v4.',
+    title: 'Fikir Karalamaları 💡',
+    content: '<p>Harika fikirler genellikle basit karalamalarla başlar.</p><p><br></p><ul><li>Proje fikri: <em>React ile modern bir zengin metin editörü.</em></li><li>Tasarım: <strong>Minimalist</strong>, gözü yormayan renkler, odaklanma modu.</li><li>Teknolojiler: Vite + React + Tailwind v4</li></ul>',
     updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
   }
 ];
 
+const FONTS = [
+  { label: 'Varsayılan', value: 'inherit' },
+  { label: 'Inter', value: 'Inter, sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Courier New', value: '"Courier New", monospace' },
+  { label: 'Playfair Display', value: '"Playfair Display", serif' },
+  { label: 'Roboto', value: 'Roboto, sans-serif' },
+  { label: 'Merriweather', value: 'Merriweather, serif' },
+  { label: 'Fira Code', value: '"Fira Code", monospace' },
+];
+
+const FONT_SIZES = ['12', '14', '16', '18', '20', '24', '28', '32', '36', '48'];
+
 const THEMES = {
-  peach: {
-    name: '🍑 Şeftali Düşü',
-    bg: 'bg-[#fff5f0] text-[#5c3a21]',
-    editorBg: 'bg-white border-[#fce3d5] text-[#5c3a21] placeholder-[#c4a693] shadow-[0_8px_30px_rgb(254,235,224,0.3)]',
-    sidebarBg: 'bg-[#fdf0e9] border-[#f8dbcc]',
-    accent: 'bg-gradient-to-br from-[#ff9a9e] to-[#fecfef] text-white',
-    accentText: 'text-[#ff7b88]',
-    buttonBg: 'bg-white hover:bg-[#fff5f0] border-[#fce3d5] text-[#5c3a21] shadow-sm',
-    activeDocBg: 'bg-white border-[#ffb3ba] text-[#5c3a21] shadow-md shadow-[#ffb3ba]/10',
-    hoverDocBg: 'hover:bg-white/60',
-    dotColor: '#fce3d5',
+  midnight: {
+    name: 'Gece Yarısı',
+    bg: 'bg-slate-950 text-slate-100',
+    editorBg: 'bg-slate-900/40 border-slate-800 text-slate-100',
+    sidebarBg: 'bg-slate-900/90 border-slate-800/80',
+    cardBg: 'bg-slate-900/50 border-slate-800/60',
+    accent: 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white',
+    accentText: 'text-violet-400',
+    buttonBg: 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 text-slate-200',
+    activeDocBg: 'bg-violet-950/30 border-violet-800/50 text-violet-200',
+    hoverDocBg: 'hover:bg-slate-800/50',
+    toolbarBg: 'bg-slate-900/95 border-slate-700/60',
+    toolbarBtn: 'hover:bg-slate-700/70 text-slate-300 border-slate-700/40',
+    toolbarBtnActive: 'bg-violet-600/30 text-violet-300 border-violet-500/50',
+    selectBg: 'bg-slate-800 border-slate-700 text-slate-200',
+    placeholderColor: '#64748b',
+    editorColor: '#e2e8f0',
   },
-  matcha: {
-    name: '🍵 Matcha Latte',
-    bg: 'bg-[#f4f7f2] text-[#2c3d24]',
-    editorBg: 'bg-white border-[#e0ebd8] text-[#2c3d24] placeholder-[#9fb691] shadow-[0_8px_30px_rgb(228,239,218,0.3)]',
-    sidebarBg: 'bg-[#ebf0e6] border-[#d8e3ce]',
-    accent: 'bg-gradient-to-br from-[#a2b997] to-[#cbe3db] text-[#2c3d24]',
-    accentText: 'text-[#87a07a]',
-    buttonBg: 'bg-white hover:bg-[#f4f7f2] border-[#e0ebd8] text-[#2c3d24] shadow-sm',
-    activeDocBg: 'bg-white border-[#c0d6ad] text-[#2c3d24] shadow-md shadow-[#c0d6ad]/10',
-    hoverDocBg: 'hover:bg-white/60',
-    dotColor: '#e0ebd8',
+  sepia: {
+    name: 'Sepya',
+    bg: 'bg-[#f4ecd8] text-[#433422]',
+    editorBg: 'bg-[#faf6eb] border-[#e4d5b7] text-[#433422]',
+    sidebarBg: 'bg-[#ebdcb9] border-[#d8c399]',
+    cardBg: 'bg-[#faf6eb]/80 border-[#e4d5b7]',
+    accent: 'bg-gradient-to-r from-[#a05a2c] to-[#b86a34] text-white',
+    accentText: 'text-[#a05a2c]',
+    buttonBg: 'bg-[#e4d5b7] hover:bg-[#d8c399] border-[#cbb380] text-[#433422]',
+    activeDocBg: 'bg-[#e4d5b7]/60 border-[#cbb380]/60 text-[#433422]',
+    hoverDocBg: 'hover:bg-[#e4d5b7]/30',
+    toolbarBg: 'bg-[#f0e4c4]/95 border-[#d8c399]',
+    toolbarBtn: 'hover:bg-[#e4d5b7] text-[#433422] border-[#d8c399]',
+    toolbarBtnActive: 'bg-[#a05a2c]/20 text-[#a05a2c] border-[#a05a2c]/40',
+    selectBg: 'bg-[#faf6eb] border-[#d8c399] text-[#433422]',
+    placeholderColor: '#a69275',
+    editorColor: '#433422',
   },
-  lavender: {
-    name: '🌌 Lavanta Gecesi',
-    bg: 'bg-[#12101e] text-[#e0ddf3]',
-    editorBg: 'bg-[#18152c]/80 border-[#2d284f] text-[#e0ddf3] placeholder-[#6e6896] shadow-[0_8px_30px_rgba(24,21,44,0.5)]',
-    sidebarBg: 'bg-[#0f0d19] border-[#201b35]',
-    accent: 'bg-gradient-to-br from-[#b399ff] to-[#ff99f0] text-slate-950 font-semibold',
-    accentText: 'text-[#b399ff]',
-    buttonBg: 'bg-[#18152c] hover:bg-[#201c3b] border-[#2d284f] text-[#e0ddf3] shadow-sm',
-    activeDocBg: 'bg-[#1c1933] border-[#7254d6]/60 text-white shadow-md shadow-[#7254d6]/20',
-    hoverDocBg: 'hover:bg-[#18152c]/50',
-    dotColor: '#2d284f',
+  light: {
+    name: 'Aydınlık',
+    bg: 'bg-slate-50 text-slate-900',
+    editorBg: 'bg-white border-slate-200 text-slate-900',
+    sidebarBg: 'bg-slate-100 border-slate-200',
+    cardBg: 'bg-white border-slate-200/80',
+    accent: 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white',
+    accentText: 'text-indigo-600',
+    buttonBg: 'bg-slate-200/60 hover:bg-slate-200 border-slate-300/80 text-slate-700',
+    activeDocBg: 'bg-indigo-50 border-indigo-200 text-indigo-900',
+    hoverDocBg: 'hover:bg-slate-200/40',
+    toolbarBg: 'bg-white/95 border-slate-200',
+    toolbarBtn: 'hover:bg-slate-100 text-slate-600 border-slate-200',
+    toolbarBtnActive: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    selectBg: 'bg-white border-slate-200 text-slate-700',
+    placeholderColor: '#94a3b8',
+    editorColor: '#0f172a',
   },
-  oatmeal: {
-    name: '☕ Yulaf & Kahve',
-    bg: 'bg-[#f9f6f0] text-[#3e2723]',
-    editorBg: 'bg-white border-[#efe5d3] text-[#3e2723] placeholder-[#baa594] shadow-[0_8px_30px_rgb(239,229,211,0.3)]',
-    sidebarBg: 'bg-[#efe5d3] border-[#e2d4bd]',
-    accent: 'bg-gradient-to-br from-[#a1887f] to-[#d7ccc8] text-[#3e2723] font-semibold',
-    accentText: 'text-[#8d6e63]',
-    buttonBg: 'bg-white hover:bg-[#f9f6f0] border-[#efe5d3] text-[#3e2723] shadow-sm',
-    activeDocBg: 'bg-white border-[#d7ccc8] text-[#3e2723] shadow-md shadow-[#d7ccc8]/10',
-    hoverDocBg: 'hover:bg-white/60',
-    dotColor: '#efe5d3',
+  focus: {
+    name: 'Odak Modu',
+    bg: 'bg-black text-zinc-300',
+    editorBg: 'bg-zinc-950 border-zinc-900 text-zinc-200',
+    sidebarBg: 'bg-zinc-950/40 border-zinc-900/40',
+    cardBg: 'bg-zinc-950/20 border-zinc-900/20',
+    accent: 'bg-gradient-to-r from-zinc-200 to-zinc-400 text-black font-semibold',
+    accentText: 'text-zinc-100',
+    buttonBg: 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300',
+    activeDocBg: 'bg-zinc-900/80 border-zinc-700/80 text-white',
+    hoverDocBg: 'hover:bg-zinc-900/30',
+    toolbarBg: 'bg-zinc-950/95 border-zinc-800/60',
+    toolbarBtn: 'hover:bg-zinc-800 text-zinc-400 border-zinc-800/40',
+    toolbarBtnActive: 'bg-zinc-700/50 text-zinc-100 border-zinc-600/50',
+    selectBg: 'bg-zinc-900 border-zinc-800 text-zinc-300',
+    placeholderColor: '#52525b',
+    editorColor: '#d4d4d8',
   }
 };
 
-const EMOJIS = ['🖋️', '💡', '📝', '✨', '🌸', '🍇', '☁️', '🎈', '🎨', '🧸', '🦖', '🌟', '🦄', '🐈', '🐕', '🌿', '📖', '☕', '🧁', '🍉', '🍿'];
-const WORD_GOALS = [50, 100, 250, 500, 1000];
-
-const CUTE_ADJECTIVES = ['Tonton', 'Uykucu', 'Meraklı', 'Pofuduk', 'Şapşik', 'Obur', 'Sevimli', 'Minnoş', 'Tombul', 'Şirin', 'Oyuncu', 'Mutlu', 'Süslü', 'Hızlı'];
-const CUTE_ANIMALS = [
-  { name: 'Tavşan', emoji: '🐰', color: '#ffb3ba' },
-  { name: 'Koala', emoji: '🐨', color: '#baffc9' },
-  { name: 'Kedi', emoji: '🐱', color: '#bae1ff' },
-  { name: 'Ayı', emoji: '🧸', color: '#ffffba' },
-  { name: 'Panda', emoji: '🐼', color: '#e8e8e8' },
-  { name: 'Dino', emoji: '🦖', color: '#ffdfba' },
-  { name: 'Unicorn', emoji: '🦄', color: '#e8c4ff' },
-  { name: 'Tilki', emoji: '🦊', color: '#ffd1b3' },
-  { name: 'Kurbağa', emoji: '🐸', color: '#c1ffb3' },
-  { name: 'Civciv', emoji: '🐥', color: '#fff0b3' },
-  { name: 'Penguen', emoji: '🐧', color: '#b3d1ff' }
-];
-
-function generateCuteNickname() {
-  const adj = CUTE_ADJECTIVES[Math.floor(Math.random() * CUTE_ADJECTIVES.length)];
-  const animal = CUTE_ANIMALS[Math.floor(Math.random() * CUTE_ANIMALS.length)];
-  return {
-    name: `${adj} ${animal.name}`,
-    emoji: animal.emoji,
-    color: animal.color
-  };
+// Toolbar button bileşeni
+function ToolbarBtn({ onClick, active, title, children, className = '' }) {
+  return (
+    <button
+      onMouseDown={(e) => { e.preventDefault(); onClick(); }}
+      title={title}
+      className={`
+        flex items-center justify-center w-8 h-8 rounded-md border text-sm font-medium
+        transition-all duration-150 cursor-pointer select-none
+        ${className}
+      `}
+      aria-label={title}
+    >
+      {children}
+    </button>
+  );
 }
 
-function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : null;
+// Divider
+function Divider() {
+  return <div className="w-px h-6 bg-current opacity-10 mx-1" />;
 }
 
 export default function App() {
   const [documents, setDocuments] = useState(() => {
-    const saved = localStorage.getItem('hokka_docs');
+    const saved = localStorage.getItem('hokka_docs_v2');
     return saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
   });
   const [activeId, setActiveId] = useState(() => {
-    const saved = localStorage.getItem('hokka_docs');
+    const saved = localStorage.getItem('hokka_docs_v2');
     const parsed = saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
     return parsed[0]?.id || '1';
   });
-  const [theme, setTheme] = useState('peach');
+  const [theme, setTheme] = useState('midnight');
   const [search, setSearch] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [wordGoal, setWordGoal] = useState(100);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // İşbirliği (Collab) durumları
-  const [collabRoom, setCollabRoom] = useState(() => new URLSearchParams(window.location.search).get('room'));
-  const [onlineUsers, setOnlineUsers] = useState([]);
-  const [showCollabMenu, setShowCollabMenu] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  // Formatting states
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+  const [isUnderline, setIsUnderline] = useState(false);
+  const [isStrikethrough, setIsStrikethrough] = useState(false);
+  const [selectedFont, setSelectedFont] = useState('inherit');
+  const [selectedSize, setSelectedSize] = useState('16');
 
-  const [userNickname] = useState(() => {
-    const saved = localStorage.getItem('hokka_nickname');
-    if (saved) return JSON.parse(saved);
-    const generated = generateCuteNickname();
-    localStorage.setItem('hokka_nickname', JSON.stringify(generated));
-    return generated;
-  });
-
-  const textareaRef = useRef(null);
-  const emojiPickerRef = useRef(null);
-  const collabMenuRef = useRef(null);
-  const yDocRef = useRef(null);
-  const providerRef = useRef(null);
-  const bindingRef = useRef(null);
+  const editorRef = useRef(null);
+  const isUpdatingRef = useRef(false);
 
   useEffect(() => {
-    localStorage.setItem('hokka_docs', JSON.stringify(documents));
+    localStorage.setItem('hokka_docs_v2', JSON.stringify(documents));
   }, [documents]);
 
-  // Click outside to close pickers
+  const activeDoc = documents.find(d => d.id === activeId) || documents[0] || { title: '', content: '' };
+  const activeTheme = THEMES[theme];
+
+  // Editor içeriğini dokümana yükle
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
-        setShowEmojiPicker(false);
-      }
-      if (collabMenuRef.current && !collabMenuRef.current.contains(event.target)) {
-        setShowCollabMenu(false);
+    if (editorRef.current && !isUpdatingRef.current) {
+      const editor = editorRef.current;
+      if (editor.innerHTML !== activeDoc.content) {
+        editor.innerHTML = activeDoc.content || '';
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activeId, activeDoc.content]);
+
+  const updateFormattingState = useCallback(() => {
+    setIsBold(document.queryCommandState('bold'));
+    setIsItalic(document.queryCommandState('italic'));
+    setIsUnderline(document.queryCommandState('underline'));
+    setIsStrikethrough(document.queryCommandState('strikeThrough'));
   }, []);
 
-  const activeDoc = documents.find(d => d.id === activeId) || documents[0] || { title: '', content: '', icon: '📝' };
-
-  // Yjs Gerçek Zamanlı Eşleme (Collab) Effect
-  useEffect(() => {
-    if (!collabRoom || !textareaRef.current) {
-      cleanupCollab();
-      return;
-    }
-
-    const doc = new Y.Doc();
-    yDocRef.current = doc;
-
-    const yText = doc.getText('content');
-
-    // wss://demos.yjs.dev üzerinde oda adıyla bağlantı
-    const provider = new WebsocketProvider('wss://demos.yjs.dev', collabRoom, doc);
-    providerRef.current = provider;
-
-    // Farkındalık (Presence/Cursor) verilerini set et
-    provider.awareness.setLocalStateField('user', {
-      name: userNickname.name,
-      emoji: userNickname.emoji,
-      color: userNickname.color
-    });
-
-    const updateUsers = () => {
-      const states = provider.awareness.getStates();
-      const users = [];
-      states.forEach((state) => {
-        if (state.user) {
-          users.push(state.user);
-        }
-      });
-      setOnlineUsers(users);
-    };
-
-    provider.awareness.on('change', updateUsers);
-
-    // Eşitleme ilk tamamlandığında oda boşsa yerel içeriği Yjs'e yükle
-    provider.on('sync', (isSynced) => {
-      if (isSynced) {
-        if (yText.toString() === '' && activeDoc.content !== '') {
-          yText.insert(0, activeDoc.content);
-        }
-      }
-    });
-
-    // RGB renk dönüşümü ve Yjs metin bağlayıcısı
-    const rgbColor = hexToRgb(userNickname.color) || { r: 120, g: 80, b: 240 };
-
-    const binding = new TextAreaBinding(yText, textareaRef.current, {
-      awareness: provider.awareness,
-      clientName: `${userNickname.emoji} ${userNickname.name}`,
-      color: rgbColor
-    });
-    bindingRef.current = binding;
-
-    // Yjs üzerinden gelen güncellemeleri React state'e ve localStorage'a aktar
-    const observer = () => {
-      const newContent = yText.toString();
-      setDocuments(prev => prev.map(doc => {
-        if (doc.id === activeId) {
-          return { ...doc, content: newContent };
-        }
-        return doc;
-      }));
-    };
-    yText.observe(observer);
-
-    return () => {
-      yText.unobserve(observer);
-      cleanupCollab();
-    };
-  }, [collabRoom, activeId]);
-
-  const cleanupCollab = () => {
-    if (bindingRef.current) {
-      bindingRef.current.destroy();
-      bindingRef.current = null;
-    }
-    if (providerRef.current) {
-      providerRef.current.destroy();
-      providerRef.current = null;
-    }
-    if (yDocRef.current) {
-      yDocRef.current.destroy();
-      yDocRef.current = null;
-    }
-    setOnlineUsers([]);
-  };
-
-  const handleTextChange = (content) => {
+  const handleEditorInput = useCallback(() => {
+    if (!editorRef.current) return;
+    isUpdatingRef.current = true;
+    const html = editorRef.current.innerHTML;
     setDocuments(prev => prev.map(doc => {
       if (doc.id === activeId) {
         return {
           ...doc,
-          content,
+          content: html,
           updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
         };
       }
       return doc;
     }));
-  };
+    setTimeout(() => { isUpdatingRef.current = false; }, 0);
+    updateFormattingState();
+  }, [activeId, updateFormattingState]);
+
+  const execFormat = useCallback((command, value = null) => {
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand(command, false, value);
+      updateFormattingState();
+      handleEditorInput();
+    }
+  }, [updateFormattingState, handleEditorInput]);
+
+  const handleFontChange = useCallback((font) => {
+    setSelectedFont(font);
+    if (font === 'inherit') {
+      execFormat('fontName', 'Arial');
+    } else {
+      execFormat('fontName', font.split(',')[0].replace(/"/g, '').trim());
+    }
+    // Apply via inline style on selection
+    if (editorRef.current) {
+      editorRef.current.style.fontFamily = font;
+    }
+  }, [execFormat]);
+
+  const handleSizeChange = useCallback((size) => {
+    setSelectedSize(size);
+    execFormat('fontSize', '7');
+    // Override font-size via selection trick
+    const fontEls = editorRef.current?.querySelectorAll('font[size="7"]');
+    fontEls?.forEach(el => {
+      el.removeAttribute('size');
+      el.style.fontSize = size + 'px';
+    });
+    handleEditorInput();
+  }, [execFormat, handleEditorInput]);
 
   const handleTitleChange = (title) => {
     setDocuments(prev => prev.map(doc => {
@@ -281,84 +241,41 @@ export default function App() {
     }));
   };
 
-  const handleIconChange = (icon) => {
-    setDocuments(prev => prev.map(doc => {
-      if (doc.id === activeId) {
-        return {
-          ...doc,
-          icon,
-          updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-        };
-      }
-      return doc;
-    }));
-    setShowEmojiPicker(false);
-  };
-
   const createNewDoc = () => {
-    const randomEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
     const newDoc = {
       id: Date.now().toString(),
-      icon: randomEmoji,
-      title: 'Yeni Taslak',
+      title: 'Başlıksız Belge 📝',
       content: '',
       updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
     };
     setDocuments(prev => [newDoc, ...prev]);
     setActiveId(newDoc.id);
-    stopCollab();
   };
 
   const deleteDoc = (id, e) => {
     e.stopPropagation();
     if (documents.length === 1) {
-      alert("En az bir belge kalmalıdır!");
+      alert('En az bir belge kalmalıdır!');
       return;
     }
     const remaining = documents.filter(d => d.id !== id);
     setDocuments(remaining);
     if (activeId === id) {
       setActiveId(remaining[0].id);
-      stopCollab();
     }
   };
 
-  const handleActiveDocChange = (id) => {
-    setActiveId(id);
-    stopCollab();
-  };
-
-  // İşbirliği Odanı Başlat/Kapat
-  const startCollab = () => {
-    const roomId = `hokka-${activeId}-${Math.random().toString(36).substring(2, 9)}`;
-    const newUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
-    window.history.pushState({}, '', newUrl);
-    setCollabRoom(roomId);
-  };
-
-  const stopCollab = () => {
-    if (!collabRoom) return;
-    const newUrl = `${window.location.origin}${window.location.pathname}`;
-    window.history.pushState({}, '', newUrl);
-    setCollabRoom(null);
-  };
-
-  const copyCollabLink = () => {
-    const link = `${window.location.origin}${window.location.pathname}?room=${collabRoom}`;
-    navigator.clipboard.writeText(link);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(activeDoc.content);
+    const text = editorRef.current?.innerText || activeDoc.content;
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const downloadTxt = () => {
-    const element = document.createElement("a");
-    const file = new Blob([activeDoc.content], { type: 'text/plain;charset=utf-8' });
+    const text = editorRef.current?.innerText || activeDoc.content;
+    const element = document.createElement('a');
+    const file = new Blob([text], { type: 'text/plain;charset=utf-8' });
     element.href = URL.createObjectURL(file);
     element.download = `${activeDoc.title.replace(/[^\w\s\u00C0-\u017F-]/g, '') || 'belge'}.txt`;
     document.body.appendChild(element);
@@ -367,39 +284,40 @@ export default function App() {
   };
 
   // İstatistikler
-  const charCount = activeDoc?.content?.length || 0;
-  const wordCount = activeDoc?.content?.trim() === '' ? 0 : activeDoc?.content?.trim().split(/\s+/).length || 0;
+  const rawText = editorRef.current?.innerText || activeDoc.content?.replace(/<[^>]*>/g, '') || '';
+  const charCount = rawText.length;
+  const wordCount = rawText.trim() === '' ? 0 : rawText.trim().split(/\s+/).length;
   const readingTime = Math.ceil(wordCount / 200);
-  
-  // Hedef İlerlemesi
-  const progressPercent = Math.min((wordCount / wordGoal) * 100, 100);
-  const isGoalReached = wordCount >= wordGoal;
 
-  const filteredDocs = documents.filter(doc => 
-    doc.title.toLowerCase().includes(search.toLowerCase()) || 
-    doc.content.toLowerCase().includes(search.toLowerCase())
+  const filteredDocs = documents.filter(doc =>
+    doc.title.toLowerCase().includes(search.toLowerCase()) ||
+    (doc.content?.replace(/<[^>]*>/g, '') || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const activeTheme = THEMES[theme];
-
   return (
-    <div className={`min-h-screen flex ${activeTheme.bg} transition-colors duration-500 font-sans h-screen overflow-hidden`}>
+    <div className={`flex ${activeTheme.bg} transition-colors duration-300 font-sans h-screen overflow-hidden`}>
+      {/* Google Fonts */}
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Roboto:wght@400;500&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet"
+      />
+
       {/* Sol Menü (Sidebar) */}
-      <div 
-        className={`${sidebarOpen ? 'w-80' : 'w-0'} flex flex-col ${activeTheme.sidebarBg} border-r border-inherit/30 transition-all duration-300 overflow-hidden relative z-20`}
+      <div
+        className={`${sidebarOpen ? 'w-72' : 'w-0'} flex flex-col ${activeTheme.sidebarBg} border-r transition-all duration-300 overflow-hidden relative z-10`}
       >
         {/* Sidebar Header */}
-        <div className="h-20 px-5 border-b border-inherit/30 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl ${activeTheme.accent} flex items-center justify-center font-bold text-xl shadow-md transition-transform hover:rotate-6`}>
+        <div className="p-4 border-b border-inherit flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`w-8 h-8 rounded-lg ${activeTheme.accent} flex items-center justify-center font-bold text-lg shadow-sm`}>
               H
             </div>
-            <h1 className="font-bold text-xl tracking-wide">Hokka</h1>
+            <h1 className="font-semibold text-lg tracking-wide">Hokka</h1>
           </div>
-          <button 
+          <button
             onClick={createNewDoc}
-            className={`w-9 h-9 rounded-xl ${activeTheme.accent} transition-all hover:scale-105 hover:shadow-md active:scale-95 cursor-pointer flex items-center justify-center`}
-            title="Yeni Taslak"
+            className={`p-2 rounded-lg ${activeTheme.accent} transition-transform hover:scale-105 cursor-pointer flex items-center justify-center`}
+            title="Yeni Belge"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -408,41 +326,40 @@ export default function App() {
         </div>
 
         {/* Arama Barı */}
-        <div className="p-4">
+        <div className="p-3">
           <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-inherit opacity-40">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-inherit opacity-50">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
             </span>
-            <input 
+            <input
               type="text"
-              placeholder="Taslaklarda ara..."
+              placeholder="Ara..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border ${activeTheme.editorBg} focus:outline-none focus:ring-4 focus:ring-amber-500/10 transition-all`}
+              className={`w-full pl-9 pr-4 py-2 text-sm rounded-lg border ${activeTheme.editorBg} focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all`}
             />
           </div>
         </div>
 
         {/* Belge Listesi */}
-        <div className="flex-1 overflow-y-auto px-3 py-1 space-y-2">
+        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
           {filteredDocs.map((doc) => (
-            <div 
+            <div
               key={doc.id}
-              onClick={() => handleActiveDocChange(doc.id)}
-              className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between group ${
-                activeId === doc.id 
-                  ? activeTheme.activeDocBg 
+              onClick={() => setActiveId(doc.id)}
+              className={`p-3 rounded-lg border cursor-pointer transition-all flex flex-col justify-between group ${
+                activeId === doc.id
+                  ? activeTheme.activeDocBg
                   : `border-transparent ${activeTheme.hoverDocBg}`
               }`}
             >
-              <div className="flex justify-between items-start gap-2.5">
-                <span className="text-lg flex-shrink-0">{doc.icon || '📝'}</span>
-                <h3 className="font-semibold text-sm truncate flex-1 leading-snug">{doc.title || 'Başlıksız Belge'}</h3>
-                <button 
+              <div className="flex justify-between items-start gap-2">
+                <h3 className="font-medium text-sm truncate flex-1">{doc.title || 'Başlıksız Belge'}</h3>
+                <button
                   onClick={(e) => deleteDoc(doc.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all cursor-pointer"
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 hover:text-red-400 rounded-md transition-all cursor-pointer"
                   title="Sil"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
@@ -450,240 +367,82 @@ export default function App() {
                   </svg>
                 </button>
               </div>
-              <p className="text-xs opacity-50 truncate mt-1.5 pl-7">
-                {doc.content ? doc.content.substring(0, 45) : 'Boş taslak...'}
+              <p className="text-xs opacity-50 truncate mt-1">
+                {doc.content ? doc.content.replace(/<[^>]*>/g, '').substring(0, 45) : 'Boş belge'}
               </p>
-              <div className="flex justify-end items-center mt-2.5 pt-2 border-t border-inherit/10 pl-7">
-                <span className="text-[10px] opacity-40 font-medium">{doc.updatedAt}</span>
+              <div className="flex justify-between items-center mt-2 pt-1 border-t border-inherit/20">
+                <span className="text-[10px] opacity-40">{doc.updatedAt}</span>
               </div>
             </div>
           ))}
           {filteredDocs.length === 0 && (
-            <div className="text-center py-12 opacity-40 text-sm">
-              🎨 Bulunamadı... Yeni bir sayfa aç!
+            <div className="text-center py-8 opacity-40 text-sm">
+              Belge bulunamadı.
             </div>
           )}
         </div>
 
         {/* Sidebar Footer - Tema Değiştirici */}
-        <div className="p-4 border-t border-inherit/40 flex flex-col gap-2.5 bg-inherit">
-          <span className="text-[11px] font-bold uppercase tracking-wider opacity-45 pl-1">Arayüz Teması</span>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="p-4 border-t border-inherit flex flex-col gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider opacity-50">Tema</span>
+          <div className="grid grid-cols-2 gap-1.5">
             {Object.entries(THEMES).map(([key, value]) => (
               <button
                 key={key}
                 onClick={() => setTheme(key)}
-                className={`px-2.5 py-2 text-xs rounded-xl border transition-all cursor-pointer text-center font-medium ${
-                  theme === key 
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-semibold' 
-                    : 'border-transparent opacity-80 hover:opacity-100 bg-black/5 hover:bg-black/10'
+                className={`px-2 py-1.5 text-xs rounded-md border transition-all cursor-pointer text-center font-medium ${
+                  theme === key
+                    ? 'border-violet-500 bg-violet-500/10 text-violet-400 font-semibold'
+                    : 'border-transparent opacity-75 hover:opacity-100 bg-black/10'
                 }`}
               >
-                {value.name.split(' ')[1]}
+                {value.name}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Ana Çalışma Alanı (Workspace) */}
-      <div 
-        className="flex-1 flex flex-col h-full overflow-hidden relative"
-        style={{
-          backgroundImage: `radial-gradient(circle, ${activeTheme.dotColor} 1.5px, transparent 1.5px)`,
-          backgroundSize: '24px 24px',
-        }}
-      >
+      {/* Ana Çalışma Alanı */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Üst Bar */}
-        <header className="h-20 border-b border-inherit/30 px-6 flex items-center justify-between gap-4 z-10 bg-inherit/90 backdrop-blur-md">
+        <header className="h-14 border-b border-inherit px-4 flex items-center justify-between gap-4 z-10 shrink-0">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`p-2.5 rounded-xl cursor-pointer ${activeTheme.buttonBg} transition-all hover:scale-105 active:scale-95`}
-              title={sidebarOpen ? "Menüyü Kapat" : "Menüyü Aç"}
+              className={`p-2 rounded-lg cursor-pointer ${activeTheme.buttonBg} transition-all`}
+              title={sidebarOpen ? 'Menüyü Kapat' : 'Menüyü Aç'}
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
               </svg>
             </button>
-
-            {/* Emoji Seçici & Başlık */}
-            <div className="flex items-center gap-2 relative">
-              <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center cursor-pointer transition-transform hover:scale-110 active:scale-95 ${activeTheme.buttonBg}`}
-                title="Simge Değiştir"
-              >
-                {activeDoc.icon || '📝'}
-              </button>
-
-              {/* Emoji Seçici Açılır Kutu */}
-              {showEmojiPicker && (
-                <div 
-                  ref={emojiPickerRef}
-                  className={`absolute top-12 left-0 p-3 rounded-2xl border ${activeTheme.editorBg} shadow-xl z-30 grid grid-cols-5 gap-2 w-60`}
-                >
-                  {EMOJIS.map(emoji => (
-                    <button
-                      key={emoji}
-                      onClick={() => handleIconChange(emoji)}
-                      className="w-9 h-9 rounded-xl hover:bg-black/5 flex items-center justify-center text-lg cursor-pointer transition-transform hover:scale-110"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <input 
-                type="text"
-                value={activeDoc.title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                className="bg-transparent font-bold text-lg md:text-xl focus:outline-none border-b-2 border-transparent hover:border-inherit/20 focus:border-amber-400 transition-all py-1 px-1 max-w-[150px] md:max-w-md font-sans"
-                placeholder="Belge Başlığı"
-              />
-            </div>
+            <input
+              type="text"
+              value={activeDoc.title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              className="bg-transparent font-semibold text-lg md:text-xl focus:outline-none border-b border-transparent hover:border-inherit/30 focus:border-violet-500 transition-all py-1 max-w-[200px] md:max-w-sm"
+              placeholder="Başlık Girin"
+            />
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Aktif Yazarlar Avatarları */}
-            {collabRoom && onlineUsers.length > 0 && (
-              <div className="hidden sm:flex items-center -space-x-2 mr-2">
-                {onlineUsers.map((user, idx) => (
-                  <div
-                    key={idx}
-                    className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-sm shadow-sm transition-transform hover:scale-115 cursor-help"
-                    style={{ backgroundColor: user.color }}
-                    title={user.name}
-                  >
-                    {user.emoji}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* İşbirliği (Collab) Butonu */}
-            <div className="relative" ref={collabMenuRef}>
-              <button
-                onClick={() => setShowCollabMenu(!showCollabMenu)}
-                className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer ${
-                  collabRoom ? 'bg-green-500/10 border-green-500/30 text-green-600 font-semibold' : activeTheme.buttonBg
-                } transition-all hover:scale-105 active:scale-95`}
-                title="İşbirliği yap"
-              >
-                {collabRoom ? (
-                  <>
-                    <span className="flex h-2 w-2 relative">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    <span>İşbirliği Aktif ({onlineUsers.length})</span>
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                    </svg>
-                    <span>İşbirliği</span>
-                  </>
-                )}
-              </button>
-
-              {showCollabMenu && (
-                <div className={`absolute top-12 right-0 p-4 rounded-2xl border ${activeTheme.editorBg} shadow-2xl z-40 w-72 flex flex-col gap-3 text-left`}>
-                  <div className="flex items-center justify-between border-b border-inherit/15 pb-2">
-                    <span className="font-bold text-sm">🔮 Ortak Çalışma</span>
-                    <span className="text-[10px] bg-black/5 px-2.5 py-0.5 rounded-lg opacity-70">
-                      Ben: {userNickname.emoji} {userNickname.name}
-                    </span>
-                  </div>
-
-                  {!collabRoom ? (
-                    <div className="flex flex-col gap-2">
-                      <p className="text-xs opacity-75 leading-relaxed">
-                        Arkadaşlarını bu belgeye davet et! Aynı anda yazın, birbirinizin imleçlerini görün. 🦖
-                      </p>
-                      <button
-                        onClick={startCollab}
-                        className={`w-full py-2.5 rounded-xl text-xs font-semibold text-center cursor-pointer transition-all ${activeTheme.accent}`}
-                      >
-                        İşbirliği Odası Başlat 🚀
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold uppercase opacity-50">Davet Linki</label>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            readOnly
-                            value={`${window.location.origin}${window.location.pathname}?room=${collabRoom}`}
-                            className="w-full bg-black/5 border border-inherit/20 text-[10px] px-2 py-1.5 rounded-lg focus:outline-none"
-                          />
-                          <button
-                            onClick={copyCollabLink}
-                            className={`p-1.5 rounded-lg cursor-pointer ${activeTheme.buttonBg}`}
-                            title="Linki kopyala"
-                          >
-                            {copiedLink ? (
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-green-500">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                              </svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H5.25m1.5-.75h1.5a1.125 1.125 0 011.125 1.125v1.5m-3 0h.008v.008H9.75V8.25zm.008 3h.008v.008H9.75v-.008zm0 3h.008v.008H9.75v-.008z" />
-                              </svg>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] font-bold uppercase opacity-50">Yazarlar ({onlineUsers.length})</span>
-                        <div className="flex flex-col gap-1.5 max-h-24 overflow-y-auto">
-                          {onlineUsers.map((user, idx) => (
-                            <div key={idx} className="flex items-center gap-1.5 text-xs">
-                              <span 
-                                className="w-4 h-4 rounded-full flex items-center justify-center text-[10px]"
-                                style={{ backgroundColor: user.color }}
-                              >
-                                {user.emoji}
-                              </span>
-                              <span className="font-medium">{user.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={stopCollab}
-                        className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 hover:text-red-600 rounded-xl text-xs font-semibold text-center cursor-pointer transition-all border border-red-500/20"
-                      >
-                        İşbirliğini Kapat ✖
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
+          <div className="flex items-center gap-2">
             <button
               onClick={copyToClipboard}
-              className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer ${activeTheme.buttonBg} transition-all hover:scale-105 active:scale-95`}
-              title="Panoya Kopyala"
+              className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 cursor-pointer ${activeTheme.buttonBg} transition-all`}
+              title="Kopyala"
             >
               {copied ? (
                 <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-green-500 animate-bounce">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-green-500">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
-                  <span className="text-green-500 font-semibold">Kopyalandı!</span>
+                  <span className="text-green-500 font-medium">Kopyalandı!</span>
                 </>
               ) : (
                 <>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a3.375 3.375 0 00-3.375 3.375v1.875m7.5 0H9m6 0v2.25c0 .621-.504 1.125-1.125 1.125h-9.75A1.125 1.125 0 013 18.75V15a2.25 2.25 0 012.25-2.25h1.5A3.375 3.375 0 0110 16.125v1.875M19 19.5v-1.5a1.5 1.5 0 00-1.5-1.5h-1.5m-4-3h.008v.008H12v-.008z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
                   </svg>
                   <span>Kopyala</span>
                 </>
@@ -692,8 +451,8 @@ export default function App() {
 
             <button
               onClick={downloadTxt}
-              className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer ${activeTheme.buttonBg} transition-all hover:scale-105 active:scale-95`}
-              title="TXT Olarak İndir"
+              className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 cursor-pointer ${activeTheme.buttonBg} transition-all`}
+              title="İndir (.txt)"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -703,51 +462,208 @@ export default function App() {
           </div>
         </header>
 
-        {/* Yazı Editör Alanı */}
-        <main className="flex-1 p-6 md:p-8 overflow-hidden flex flex-col justify-center items-center">
-          <div className="w-full max-w-4xl flex-1 flex flex-col relative">
-            <textarea
-              id="editor-textarea"
-              ref={textareaRef}
-              key={activeId}
-              defaultValue={activeDoc.content}
-              value={collabRoom ? undefined : activeDoc.content}
-              onChange={collabRoom ? undefined : (e) => handleTextChange(e.target.value)}
-              className={`w-full flex-1 p-6 md:p-10 rounded-[28px] border-2 ${activeTheme.editorBg} focus:outline-none resize-none font-sans text-base md:text-lg leading-relaxed overflow-y-auto transition-all duration-300 focus:border-amber-400`}
-              placeholder="Karalamaya başla... ✨"
-            />
-          </div>
+        {/* Formatting Toolbar */}
+        <div className={`shrink-0 border-b ${activeTheme.toolbarBg} px-4 py-2 flex items-center gap-1 flex-wrap z-10`}>
+          {/* Font Ailesi */}
+          <select
+            id="font-family-select"
+            value={selectedFont}
+            onChange={(e) => handleFontChange(e.target.value)}
+            className={`text-xs px-2 py-1.5 rounded-md border ${activeTheme.selectBg} focus:outline-none cursor-pointer transition-all h-8`}
+            title="Font Ailesi"
+          >
+            {FONTS.map(f => (
+              <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Font Boyutu */}
+          <select
+            id="font-size-select"
+            value={selectedSize}
+            onChange={(e) => handleSizeChange(e.target.value)}
+            className={`text-xs px-2 py-1.5 rounded-md border ${activeTheme.selectBg} focus:outline-none cursor-pointer transition-all h-8 w-16`}
+            title="Font Boyutu"
+          >
+            {FONT_SIZES.map(s => (
+              <option key={s} value={s}>{s}px</option>
+            ))}
+          </select>
+
+          <Divider />
+
+          {/* Bold */}
+          <ToolbarBtn
+            onClick={() => execFormat('bold')}
+            active={isBold}
+            title="Kalın (Ctrl+B)"
+            className={isBold ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M6 4.5h5.25A3.75 3.75 0 0115 8.25a3.75 3.75 0 01-1.5 3 4.5 4.5 0 012.25 3.938A4.5 4.5 0 0111.25 19.5H6a.75.75 0 01-.75-.75V5.25A.75.75 0 016 4.5zm.75 6h4.5a2.25 2.25 0 000-4.5H6.75v4.5zm0 7.5h4.5a3 3 0 000-6H6.75v6z" />
+            </svg>
+          </ToolbarBtn>
+
+          {/* Italic */}
+          <ToolbarBtn
+            onClick={() => execFormat('italic')}
+            active={isItalic}
+            title="İtalik (Ctrl+I)"
+            className={isItalic ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M10 4.5h8a.75.75 0 010 1.5H14.5L9.5 18H13a.75.75 0 010 1.5H5a.75.75 0 010-1.5h3.5L13.5 6H10a.75.75 0 010-1.5z" />
+            </svg>
+          </ToolbarBtn>
+
+          {/* Underline */}
+          <ToolbarBtn
+            onClick={() => execFormat('underline')}
+            active={isUnderline}
+            title="Altı Çizili (Ctrl+U)"
+            className={isUnderline ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M5.75 19.5a.75.75 0 000 1.5h12.5a.75.75 0 000-1.5H5.75zm1.5-15v7.75a4.75 4.75 0 009.5 0V4.5a.75.75 0 011.5 0v7.75a6.25 6.25 0 01-12.5 0V4.5a.75.75 0 011.5 0z" />
+            </svg>
+          </ToolbarBtn>
+
+          {/* Strikethrough */}
+          <ToolbarBtn
+            onClick={() => execFormat('strikeThrough')}
+            active={isStrikethrough}
+            title="Üstü Çizili"
+            className={isStrikethrough ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M4.5 12.75a.75.75 0 000 1.5h15a.75.75 0 000-1.5h-15zM8 7.5c0-1.657 1.791-3 4-3 1.331 0 2.508.506 3.226 1.268a.75.75 0 001.048-1.073C15.197 3.53 13.666 3 12 3c-3.038 0-5.5 1.944-5.5 4.5 0 .657.163 1.276.447 1.833a.75.75 0 001.346-.666A2.51 2.51 0 018 7.5zm8.053 9c0 1.657-1.791 3-4.003 3-1.425 0-2.682-.57-3.39-1.425a.75.75 0 10-1.17.942C8.39 20.337 10.08 21 12.05 21c3.038 0 5.503-1.944 5.503-4.5a3.9 3.9 0 00-.233-1.333.75.75 0 10-1.419.494c.097.268.152.552.152.839z" />
+            </svg>
+          </ToolbarBtn>
+
+          <Divider />
+
+          {/* Hizalama */}
+          <ToolbarBtn
+            onClick={() => execFormat('justifyLeft')}
+            title="Sola Hizala"
+            className={activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M3 5.25a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 5.25zm0 4.5a.75.75 0 01.75-.75H12a.75.75 0 010 1.5H3.75A.75.75 0 013 9.75zm0 4.5a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75zm0 4.5a.75.75 0 01.75-.75H12a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75z" />
+            </svg>
+          </ToolbarBtn>
+
+          <ToolbarBtn
+            onClick={() => execFormat('justifyCenter')}
+            title="Ortala"
+            className={activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M3 5.25a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 5.25zm3 4.5a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75A.75.75 0 016 9.75zm-3 4.5a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75zm3 4.5a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H6.75a.75.75 0 01-.75-.75z" />
+            </svg>
+          </ToolbarBtn>
+
+          <ToolbarBtn
+            onClick={() => execFormat('justifyRight')}
+            title="Sağa Hizala"
+            className={activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M3 5.25a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 5.25zm6 4.5a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H9.75A.75.75 0 019 9.75zm-6 4.5a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75zm6 4.5a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H9.75a.75.75 0 01-.75-.75z" />
+            </svg>
+          </ToolbarBtn>
+
+          <Divider />
+
+          {/* Liste */}
+          <ToolbarBtn
+            onClick={() => execFormat('insertUnorderedList')}
+            title="Madde İşaretli Liste"
+            className={activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M2.625 6.75a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0zm4.875 0A.75.75 0 018.25 6h12a.75.75 0 010 1.5h-12a.75.75 0 01-.75-.75zM2.625 12a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0zM7.5 12a.75.75 0 01.75-.75h12a.75.75 0 010 1.5h-12A.75.75 0 017.5 12zm-4.875 5.25a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0zm4.875 0a.75.75 0 01.75-.75h12a.75.75 0 010 1.5h-12a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+            </svg>
+          </ToolbarBtn>
+
+          <ToolbarBtn
+            onClick={() => execFormat('insertOrderedList')}
+            title="Numaralı Liste"
+            className={activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M3 6a.75.75 0 01.75-.75H4.5a.75.75 0 01.75.75v3.75H6a.75.75 0 010 1.5H3a.75.75 0 010-1.5h.75V6.75H3.75A.75.75 0 013 6zm0 7.5a.75.75 0 01.75-.75h2.25c.257 0 .5.103.682.284l.14.14a.75.75 0 11-1.06 1.06l-.072-.07H4.5v.75H5.25a.75.75 0 01.75.75v.75H4.5v.75h1.5a.75.75 0 010 1.5H3.75A.75.75 0 013 18v-.75a.75.75 0 01.75-.75H4.5v-.75H3.75A.75.75 0 013 15v-.75A.75.75 0 013.75 13.5H3A.75.75 0 013 13.5zm5.25-9a.75.75 0 01.75-.75h9a.75.75 0 010 1.5h-9A.75.75 0 018.25 4.5zm0 4.5a.75.75 0 01.75-.75h9a.75.75 0 010 1.5h-9A.75.75 0 018.25 9zm0 4.5a.75.75 0 01.75-.75h9a.75.75 0 010 1.5h-9a.75.75 0 01-.75-.75zm0 4.5a.75.75 0 01.75-.75h9a.75.75 0 010 1.5h-9a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+            </svg>
+          </ToolbarBtn>
+
+          <Divider />
+
+          {/* Geri al / Yinele */}
+          <ToolbarBtn
+            onClick={() => execFormat('undo')}
+            title="Geri Al (Ctrl+Z)"
+            className={activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M9.53 2.47a.75.75 0 010 1.06L4.81 8.25H15a6.75 6.75 0 010 13.5h-3a.75.75 0 010-1.5h3a5.25 5.25 0 100-10.5H4.81l4.72 4.72a.75.75 0 11-1.06 1.06l-6-6a.75.75 0 010-1.06l6-6a.75.75 0 011.06 0z" clipRule="evenodd" />
+            </svg>
+          </ToolbarBtn>
+
+          <ToolbarBtn
+            onClick={() => execFormat('redo')}
+            title="Yinele (Ctrl+Y)"
+            className={activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M14.47 2.47a.75.75 0 011.06 0l6 6a.75.75 0 010 1.06l-6 6a.75.75 0 11-1.06-1.06l4.72-4.72H9a5.25 5.25 0 100 10.5h3a.75.75 0 010 1.5H9a6.75 6.75 0 010-13.5h10.19l-4.72-4.72a.75.75 0 010-1.06z" clipRule="evenodd" />
+            </svg>
+          </ToolbarBtn>
+
+          <Divider />
+
+          {/* Biçimlendirmeyi Temizle */}
+          <ToolbarBtn
+            onClick={() => execFormat('removeFormat')}
+            title="Biçimlendirmeyi Temizle"
+            className={activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M6.96 4.44l10.59 10.59-2.34 2.34H14l-2-2H9.34l-.36.36L7.25 17H5l2.5-2.5L3.44 10.5l3.52-6.06zM19 3L5 17l1.41 1.41L20.41 4.41 19 3z" />
+            </svg>
+          </ToolbarBtn>
+        </div>
+
+        {/* Yazı Editörü */}
+        <main className="flex-1 p-4 overflow-hidden flex flex-col">
+          <div
+            id="rich-text-editor"
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={handleEditorInput}
+            onKeyUp={updateFormattingState}
+            onMouseUp={updateFormattingState}
+            onSelect={updateFormattingState}
+            data-placeholder="Yazmaya başlayın..."
+            className={`w-full flex-1 p-6 md:p-8 rounded-2xl border ${activeTheme.editorBg} focus:outline-none overflow-y-auto leading-relaxed text-base editor-content`}
+            style={{
+              fontFamily: selectedFont === 'inherit' ? 'Inter, sans-serif' : selectedFont,
+              fontSize: selectedSize + 'px',
+              minHeight: '200px',
+            }}
+          />
         </main>
 
-        {/* Alt Bilgi Barı (İstatistikler ve Hedef) */}
-        <footer className="border-t border-inherit/30 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs z-10 bg-inherit/90 backdrop-blur-md">
-          {/* Kelime Hedefi */}
-          <div className="flex items-center gap-3">
-            <span className="font-semibold opacity-70">🎯 Hedef:</span>
-            <select
-              value={wordGoal}
-              onChange={(e) => setWordGoal(Number(e.target.value))}
-              className={`px-2.5 py-1 rounded-lg border text-xs focus:outline-none cursor-pointer ${activeTheme.buttonBg}`}
-            >
-              {WORD_GOALS.map(goal => (
-                <option key={goal} value={goal}>{goal} Kelime</option>
-              ))}
-            </select>
-            <div className="w-32 bg-black/10 rounded-full h-2 overflow-hidden relative">
-              <div 
-                className={`h-full transition-all duration-500 rounded-full ${isGoalReached ? 'bg-green-500' : 'bg-amber-400'}`}
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="font-medium opacity-80">
-              {isGoalReached ? 'Başarıldı! 🎉' : `%${Math.round(progressPercent)}`}
-            </span>
+        {/* Alt Bilgi Barı */}
+        <footer className="h-10 border-t border-inherit px-6 flex items-center justify-between text-xs opacity-60 z-10 shrink-0">
+          <div className="flex items-center gap-4">
+            <span><strong>Karakter:</strong> {charCount}</span>
+            <span><strong>Kelime:</strong> {wordCount}</span>
           </div>
-
-          <div className="flex items-center gap-5 opacity-70 font-medium">
-            <span>📝 <strong>Karakter:</strong> {charCount}</span>
-            <span>💬 <strong>Kelime:</strong> {wordCount}</span>
-            <span>☕ <strong>Okuma Süresi:</strong> {readingTime} dk</span>
+          <div>
+            <span>⏱️ {readingTime} dk okuma</span>
           </div>
         </footer>
       </div>
