@@ -3,13 +3,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 const INITIAL_DOCUMENTS = [
   {
     id: '1',
-    title: 'Yeni Bir Başlangıç 🖋️',
-    content: '<p>Bu, <strong>Hokka</strong> editörüne hoş geldiniz! Üstteki araç çubuğu ile metninizi biçimlendirebilirsiniz.</p><p><br></p><p>Özellikler:</p><ul><li>🚀 Font ailesi seçimi</li><li>🔠 Font boyutu ayarlama</li><li><strong>Kalın</strong>, <em>italik</em>, <u>altı çizili</u>, <s>üstü çizili</s> metin stilleri</li><li>🎨 Farklı çalışma temaları</li><li>📂 Otomatik kayıt (LocalStorage)</li></ul><p><br></p><p>Yazmaya başlamak için burayı temizleyebilir veya sol üstteki <strong>+</strong> butonuna basarak yeni bir belge açabilirsiniz.</p>',
+    icon: '🖋️',
+    title: 'Yeni Bir Başlangıç',
+    content: '<p>Bu, <strong>Hokka</strong> editörüne hoş geldiniz! Üstteki araç çubuğu ile metninizi biçimlendirebilirsiniz.</p><p><br></p><p>Özellikler:</p><ul><li>🚀 Font ailesi seçimi</li><li>🔠 Font boyutu ayarlama</li><li><strong>Kalın</strong>, <em>italik</em>, <u>altı çizili</u>, <s>üstü çizili</s> metin stilleri</li><li>🎨 Sevimli çalışma temaları</li><li>📂 Otomatik kayıt (LocalStorage)</li></ul><p><br></p><p>Yazmaya başlamak için burayı temizleyebilir veya sol üstteki <strong>+</strong> butonuna basarak yeni bir belge açabilirsiniz.</p>',
     updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
   },
   {
     id: '2',
-    title: 'Fikir Karalamaları 💡',
+    icon: '💡',
+    title: 'Fikir Karalamaları',
     content: '<p>Harika fikirler genellikle basit karalamalarla başlar.</p><p><br></p><ul><li>Proje fikri: <em>React ile modern bir zengin metin editörü.</em></li><li>Tasarım: <strong>Minimalist</strong>, gözü yormayan renkler, odaklanma modu.</li><li>Teknolojiler: Vite + React + Tailwind v4</li></ul>',
     updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
   }
@@ -29,79 +31,90 @@ const FONTS = [
 const FONT_SIZES = ['12', '14', '16', '18', '20', '24', '28', '32', '36', '48'];
 
 const THEMES = {
-  midnight: {
-    name: 'Gece Yarısı',
-    bg: 'bg-slate-950 text-slate-100',
-    editorBg: 'bg-slate-900/40 border-slate-800 text-slate-100',
-    sidebarBg: 'bg-slate-900/90 border-slate-800/80',
-    cardBg: 'bg-slate-900/50 border-slate-800/60',
-    accent: 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white',
-    accentText: 'text-violet-400',
-    buttonBg: 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 text-slate-200',
-    activeDocBg: 'bg-violet-950/30 border-violet-800/50 text-violet-200',
-    hoverDocBg: 'hover:bg-slate-800/50',
-    toolbarBg: 'bg-slate-900/95 border-slate-700/60',
-    toolbarBtn: 'hover:bg-slate-700/70 text-slate-300 border-slate-700/40',
-    toolbarBtnActive: 'bg-violet-600/30 text-violet-300 border-violet-500/50',
-    selectBg: 'bg-slate-800 border-slate-700 text-slate-200',
-    placeholderColor: '#64748b',
-    editorColor: '#e2e8f0',
+  peach: {
+    name: '🍑 Şeftali Düşü',
+    bg: 'bg-[#fff5f0] text-[#5c3a21]',
+    editorBg: 'bg-white border-[#fce3d5] text-[#5c3a21] shadow-[0_8px_30px_rgb(254,235,224,0.3)]',
+    sidebarBg: 'bg-[#fdf0e9] border-[#f8dbcc]',
+    cardBg: 'bg-white border-[#fce3d5]',
+    accent: 'bg-gradient-to-br from-[#ff9a9e] to-[#fecfef] text-white',
+    accentText: 'text-[#ff7b88]',
+    buttonBg: 'bg-white hover:bg-[#fff5f0] border-[#fce3d5] text-[#5c3a21] shadow-sm',
+    activeDocBg: 'bg-white border-[#ffb3ba] text-[#5c3a21] shadow-md shadow-[#ffb3ba]/10',
+    hoverDocBg: 'hover:bg-white/60',
+    toolbarBg: 'bg-[#fff5f0]/95 border-[#fce3d5]',
+    toolbarBtn: 'hover:bg-[#fce3d5] text-[#5c3a21] border-[#fce3d5]',
+    toolbarBtnActive: 'bg-[#ff9a9e]/20 text-[#ff7b88] border-[#ff9a9e]/40',
+    selectBg: 'bg-white border-[#fce3d5] text-[#5c3a21]',
+    dotColor: '#fce3d5',
+    placeholderColor: '#c4a693',
+    editorColor: '#5c3a21',
+    focusBorder: 'focus:border-[#ff9a9e]',
   },
-  sepia: {
-    name: 'Sepya',
-    bg: 'bg-[#f4ecd8] text-[#433422]',
-    editorBg: 'bg-[#faf6eb] border-[#e4d5b7] text-[#433422]',
-    sidebarBg: 'bg-[#ebdcb9] border-[#d8c399]',
-    cardBg: 'bg-[#faf6eb]/80 border-[#e4d5b7]',
-    accent: 'bg-gradient-to-r from-[#a05a2c] to-[#b86a34] text-white',
-    accentText: 'text-[#a05a2c]',
-    buttonBg: 'bg-[#e4d5b7] hover:bg-[#d8c399] border-[#cbb380] text-[#433422]',
-    activeDocBg: 'bg-[#e4d5b7]/60 border-[#cbb380]/60 text-[#433422]',
-    hoverDocBg: 'hover:bg-[#e4d5b7]/30',
-    toolbarBg: 'bg-[#f0e4c4]/95 border-[#d8c399]',
-    toolbarBtn: 'hover:bg-[#e4d5b7] text-[#433422] border-[#d8c399]',
-    toolbarBtnActive: 'bg-[#a05a2c]/20 text-[#a05a2c] border-[#a05a2c]/40',
-    selectBg: 'bg-[#faf6eb] border-[#d8c399] text-[#433422]',
-    placeholderColor: '#a69275',
-    editorColor: '#433422',
+  matcha: {
+    name: '🍵 Matcha Latte',
+    bg: 'bg-[#f4f7f2] text-[#2c3d24]',
+    editorBg: 'bg-white border-[#e0ebd8] text-[#2c3d24] shadow-[0_8px_30px_rgb(228,239,218,0.3)]',
+    sidebarBg: 'bg-[#ebf0e6] border-[#d8e3ce]',
+    cardBg: 'bg-white border-[#e0ebd8]',
+    accent: 'bg-gradient-to-br from-[#a2b997] to-[#cbe3db] text-[#2c3d24]',
+    accentText: 'text-[#87a07a]',
+    buttonBg: 'bg-white hover:bg-[#f4f7f2] border-[#e0ebd8] text-[#2c3d24] shadow-sm',
+    activeDocBg: 'bg-white border-[#c0d6ad] text-[#2c3d24] shadow-md shadow-[#c0d6ad]/10',
+    hoverDocBg: 'hover:bg-white/60',
+    toolbarBg: 'bg-[#f4f7f2]/95 border-[#e0ebd8]',
+    toolbarBtn: 'hover:bg-[#e0ebd8] text-[#2c3d24] border-[#e0ebd8]',
+    toolbarBtnActive: 'bg-[#a2b997]/20 text-[#87a07a] border-[#a2b997]/40',
+    selectBg: 'bg-white border-[#e0ebd8] text-[#2c3d24]',
+    dotColor: '#e0ebd8',
+    placeholderColor: '#9fb691',
+    editorColor: '#2c3d24',
+    focusBorder: 'focus:border-[#a2b997]',
   },
-  light: {
-    name: 'Aydınlık',
-    bg: 'bg-slate-50 text-slate-900',
-    editorBg: 'bg-white border-slate-200 text-slate-900',
-    sidebarBg: 'bg-slate-100 border-slate-200',
-    cardBg: 'bg-white border-slate-200/80',
-    accent: 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white',
-    accentText: 'text-indigo-600',
-    buttonBg: 'bg-slate-200/60 hover:bg-slate-200 border-slate-300/80 text-slate-700',
-    activeDocBg: 'bg-indigo-50 border-indigo-200 text-indigo-900',
-    hoverDocBg: 'hover:bg-slate-200/40',
-    toolbarBg: 'bg-white/95 border-slate-200',
-    toolbarBtn: 'hover:bg-slate-100 text-slate-600 border-slate-200',
-    toolbarBtnActive: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    selectBg: 'bg-white border-slate-200 text-slate-700',
-    placeholderColor: '#94a3b8',
-    editorColor: '#0f172a',
+  lavender: {
+    name: '🌌 Lavanta Gecesi',
+    bg: 'bg-[#12101e] text-[#e0ddf3]',
+    editorBg: 'bg-[#18152c]/80 border-[#2d284f] text-[#e0ddf3] shadow-[0_8px_30px_rgba(24,21,44,0.5)]',
+    sidebarBg: 'bg-[#0f0d19] border-[#201b35]',
+    cardBg: 'bg-[#18152c] border-[#2d284f]',
+    accent: 'bg-gradient-to-br from-[#b399ff] to-[#ff99f0] text-slate-950 font-semibold',
+    accentText: 'text-[#b399ff]',
+    buttonBg: 'bg-[#18152c] hover:bg-[#201c3b] border-[#2d284f] text-[#e0ddf3] shadow-sm',
+    activeDocBg: 'bg-[#1c1933] border-[#7254d6]/60 text-white shadow-md shadow-[#7254d6]/20',
+    hoverDocBg: 'hover:bg-[#18152c]/50',
+    toolbarBg: 'bg-[#18152c]/95 border-[#2d284f]',
+    toolbarBtn: 'hover:bg-[#2d284f] text-[#e0ddf3] border-[#2d284f]',
+    toolbarBtnActive: 'bg-[#b399ff]/20 text-[#b399ff] border-[#b399ff]/40',
+    selectBg: 'bg-[#18152c] border-[#2d284f] text-[#e0ddf3]',
+    dotColor: '#2d284f',
+    placeholderColor: '#6e6896',
+    editorColor: '#e0ddf3',
+    focusBorder: 'focus:border-[#b399ff]',
   },
-  focus: {
-    name: 'Odak Modu',
-    bg: 'bg-black text-zinc-300',
-    editorBg: 'bg-zinc-950 border-zinc-900 text-zinc-200',
-    sidebarBg: 'bg-zinc-950/40 border-zinc-900/40',
-    cardBg: 'bg-zinc-950/20 border-zinc-900/20',
-    accent: 'bg-gradient-to-r from-zinc-200 to-zinc-400 text-black font-semibold',
-    accentText: 'text-zinc-100',
-    buttonBg: 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300',
-    activeDocBg: 'bg-zinc-900/80 border-zinc-700/80 text-white',
-    hoverDocBg: 'hover:bg-zinc-900/30',
-    toolbarBg: 'bg-zinc-950/95 border-zinc-800/60',
-    toolbarBtn: 'hover:bg-zinc-800 text-zinc-400 border-zinc-800/40',
-    toolbarBtnActive: 'bg-zinc-700/50 text-zinc-100 border-zinc-600/50',
-    selectBg: 'bg-zinc-900 border-zinc-800 text-zinc-300',
-    placeholderColor: '#52525b',
-    editorColor: '#d4d4d8',
+  oatmeal: {
+    name: '☕ Yulaf & Kahve',
+    bg: 'bg-[#f9f6f0] text-[#3e2723]',
+    editorBg: 'bg-white border-[#efe5d3] text-[#3e2723] shadow-[0_8px_30px_rgb(239,229,211,0.3)]',
+    sidebarBg: 'bg-[#efe5d3] border-[#e2d4bd]',
+    cardBg: 'bg-white border-[#efe5d3]',
+    accent: 'bg-gradient-to-br from-[#a1887f] to-[#d7ccc8] text-[#3e2723] font-semibold',
+    accentText: 'text-[#8d6e63]',
+    buttonBg: 'bg-white hover:bg-[#f9f6f0] border-[#efe5d3] text-[#3e2723] shadow-sm',
+    activeDocBg: 'bg-white border-[#d7ccc8] text-[#3e2723] shadow-md shadow-[#d7ccc8]/10',
+    hoverDocBg: 'hover:bg-white/60',
+    toolbarBg: 'bg-[#f9f6f0]/95 border-[#efe5d3]',
+    toolbarBtn: 'hover:bg-[#efe5d3] text-[#3e2723] border-[#efe5d3]',
+    toolbarBtnActive: 'bg-[#a1887f]/20 text-[#8d6e63] border-[#a1887f]/40',
+    selectBg: 'bg-white border-[#efe5d3] text-[#3e2723]',
+    dotColor: '#efe5d3',
+    placeholderColor: '#baa594',
+    editorColor: '#3e2723',
+    focusBorder: 'focus:border-[#a1887f]',
   }
 };
+
+const EMOJIS = ['🖋️', '💡', '📝', '✨', '🌸', '🍇', '☁️', '🎈', '🎨', '🧸', '🦖', '🌟', '🦄', '🐈', '🐕', '🌿', '📖', '☕', '🧁', '🍉', '🍿'];
+const WORD_GOALS = [50, 100, 250, 500, 1000];
 
 // Toolbar button bileşeni
 function ToolbarBtn({ onClick, active, title, children, className = '' }) {
@@ -110,8 +123,8 @@ function ToolbarBtn({ onClick, active, title, children, className = '' }) {
       onMouseDown={(e) => { e.preventDefault(); onClick(); }}
       title={title}
       className={`
-        flex items-center justify-center w-8 h-8 rounded-md border text-sm font-medium
-        transition-all duration-150 cursor-pointer select-none
+        flex items-center justify-center w-8 h-8 rounded-xl border text-sm font-medium
+        transition-all duration-150 cursor-pointer select-none hover:scale-105 active:scale-95
         ${className}
       `}
       aria-label={title}
@@ -128,18 +141,20 @@ function Divider() {
 
 export default function App() {
   const [documents, setDocuments] = useState(() => {
-    const saved = localStorage.getItem('hokka_docs_v2');
+    const saved = localStorage.getItem('hokka_docs_v3');
     return saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
   });
   const [activeId, setActiveId] = useState(() => {
-    const saved = localStorage.getItem('hokka_docs_v2');
+    const saved = localStorage.getItem('hokka_docs_v3');
     const parsed = saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
     return parsed[0]?.id || '1';
   });
-  const [theme, setTheme] = useState('midnight');
+  const [theme, setTheme] = useState('peach');
   const [search, setSearch] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [wordGoal, setWordGoal] = useState(100);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Formatting states
   const [isBold, setIsBold] = useState(false);
@@ -151,12 +166,24 @@ export default function App() {
 
   const editorRef = useRef(null);
   const isUpdatingRef = useRef(false);
+  const emojiPickerRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem('hokka_docs_v2', JSON.stringify(documents));
+    localStorage.setItem('hokka_docs_v3', JSON.stringify(documents));
   }, [documents]);
 
-  const activeDoc = documents.find(d => d.id === activeId) || documents[0] || { title: '', content: '' };
+  // Click outside to close emoji picker
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const activeDoc = documents.find(d => d.id === activeId) || documents[0] || { title: '', content: '', icon: '📝' };
   const activeTheme = THEMES[theme];
 
   // Editor içeriğini dokümana yükle
@@ -210,7 +237,6 @@ export default function App() {
     } else {
       execFormat('fontName', font.split(',')[0].replace(/"/g, '').trim());
     }
-    // Apply via inline style on selection
     if (editorRef.current) {
       editorRef.current.style.fontFamily = font;
     }
@@ -219,7 +245,6 @@ export default function App() {
   const handleSizeChange = useCallback((size) => {
     setSelectedSize(size);
     execFormat('fontSize', '7');
-    // Override font-size via selection trick
     const fontEls = editorRef.current?.querySelectorAll('font[size="7"]');
     fontEls?.forEach(el => {
       el.removeAttribute('size');
@@ -241,10 +266,21 @@ export default function App() {
     }));
   };
 
+  const handleIconChange = (emoji) => {
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === activeId) {
+        return { ...doc, icon: emoji };
+      }
+      return doc;
+    }));
+    setShowEmojiPicker(false);
+  };
+
   const createNewDoc = () => {
     const newDoc = {
       id: Date.now().toString(),
-      title: 'Başlıksız Belge 📝',
+      icon: '📝',
+      title: 'Başlıksız Belge',
       content: '',
       updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
     };
@@ -288,6 +324,8 @@ export default function App() {
   const charCount = rawText.length;
   const wordCount = rawText.trim() === '' ? 0 : rawText.trim().split(/\s+/).length;
   const readingTime = Math.ceil(wordCount / 200);
+  const progressPercent = Math.min((wordCount / wordGoal) * 100, 100);
+  const isGoalReached = wordCount >= wordGoal;
 
   const filteredDocs = documents.filter(doc =>
     doc.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -298,7 +336,7 @@ export default function App() {
     <div className={`flex ${activeTheme.bg} transition-colors duration-300 font-sans h-screen overflow-hidden`}>
       {/* Google Fonts */}
       <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Roboto:wght@400;500&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Fira+Code:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Roboto:wght@400;500&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Fira+Code:wght@400;500&display=swap"
         rel="stylesheet"
       />
 
@@ -309,14 +347,14 @@ export default function App() {
         {/* Sidebar Header */}
         <div className="p-4 border-b border-inherit flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-lg ${activeTheme.accent} flex items-center justify-center font-bold text-lg shadow-sm`}>
+            <div className={`w-9 h-9 rounded-2xl ${activeTheme.accent} flex items-center justify-center font-bold text-lg shadow-sm`}>
               H
             </div>
-            <h1 className="font-semibold text-lg tracking-wide">Hokka</h1>
+            <h1 className="font-bold text-lg tracking-wide">Hokka</h1>
           </div>
           <button
             onClick={createNewDoc}
-            className={`p-2 rounded-lg ${activeTheme.accent} transition-transform hover:scale-105 cursor-pointer flex items-center justify-center`}
+            className={`p-2.5 rounded-xl ${activeTheme.accent} transition-transform hover:scale-110 active:scale-95 cursor-pointer flex items-center justify-center`}
             title="Yeni Belge"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
@@ -338,28 +376,31 @@ export default function App() {
               placeholder="Ara..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`w-full pl-9 pr-4 py-2 text-sm rounded-lg border ${activeTheme.editorBg} focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all`}
+              className={`w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border ${activeTheme.editorBg} focus:outline-none focus:ring-2 focus:ring-amber-400/40 transition-all`}
             />
           </div>
         </div>
 
         {/* Belge Listesi */}
-        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
+        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1.5">
           {filteredDocs.map((doc) => (
             <div
               key={doc.id}
               onClick={() => setActiveId(doc.id)}
-              className={`p-3 rounded-lg border cursor-pointer transition-all flex flex-col justify-between group ${
+              className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between group ${
                 activeId === doc.id
                   ? activeTheme.activeDocBg
                   : `border-transparent ${activeTheme.hoverDocBg}`
               }`}
             >
               <div className="flex justify-between items-start gap-2">
-                <h3 className="font-medium text-sm truncate flex-1">{doc.title || 'Başlıksız Belge'}</h3>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-base flex-shrink-0">{doc.icon || '📝'}</span>
+                  <h3 className="font-semibold text-sm truncate">{doc.title || 'Başlıksız Belge'}</h3>
+                </div>
                 <button
                   onClick={(e) => deleteDoc(doc.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 hover:text-red-400 rounded-md transition-all cursor-pointer"
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-all cursor-pointer"
                   title="Sil"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
@@ -367,10 +408,10 @@ export default function App() {
                   </svg>
                 </button>
               </div>
-              <p className="text-xs opacity-50 truncate mt-1">
+              <p className="text-xs opacity-50 truncate mt-1.5">
                 {doc.content ? doc.content.replace(/<[^>]*>/g, '').substring(0, 45) : 'Boş belge'}
               </p>
-              <div className="flex justify-between items-center mt-2 pt-1 border-t border-inherit/20">
+              <div className="flex justify-between items-center mt-2 pt-1.5 border-t border-inherit/20">
                 <span className="text-[10px] opacity-40">{doc.updatedAt}</span>
               </div>
             </div>
@@ -390,10 +431,10 @@ export default function App() {
               <button
                 key={key}
                 onClick={() => setTheme(key)}
-                className={`px-2 py-1.5 text-xs rounded-md border transition-all cursor-pointer text-center font-medium ${
+                className={`px-2.5 py-2 text-xs rounded-xl border transition-all cursor-pointer text-center font-medium ${
                   theme === key
-                    ? 'border-violet-500 bg-violet-500/10 text-violet-400 font-semibold'
-                    : 'border-transparent opacity-75 hover:opacity-100 bg-black/10'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-semibold'
+                    : 'border-transparent opacity-80 hover:opacity-100 bg-black/5 hover:bg-black/10'
                 }`}
               >
                 {value.name}
@@ -404,40 +445,75 @@ export default function App() {
       </div>
 
       {/* Ana Çalışma Alanı */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+      <div
+        className="flex-1 flex flex-col h-full overflow-hidden relative"
+        style={{
+          backgroundImage: `radial-gradient(circle, ${activeTheme.dotColor} 1.5px, transparent 1.5px)`,
+          backgroundSize: '24px 24px',
+        }}
+      >
         {/* Üst Bar */}
-        <header className="h-14 border-b border-inherit px-4 flex items-center justify-between gap-4 z-10 shrink-0">
+        <header className="h-16 border-b border-inherit/30 px-5 flex items-center justify-between gap-4 z-10 bg-inherit/90 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`p-2 rounded-lg cursor-pointer ${activeTheme.buttonBg} transition-all`}
+              className={`p-2.5 rounded-xl cursor-pointer ${activeTheme.buttonBg} transition-all hover:scale-105 active:scale-95`}
               title={sidebarOpen ? 'Menüyü Kapat' : 'Menüyü Aç'}
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
               </svg>
             </button>
-            <input
-              type="text"
-              value={activeDoc.title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              className="bg-transparent font-semibold text-lg md:text-xl focus:outline-none border-b border-transparent hover:border-inherit/30 focus:border-violet-500 transition-all py-1 max-w-[200px] md:max-w-sm"
-              placeholder="Başlık Girin"
-            />
+
+            {/* Emoji Seçici & Başlık */}
+            <div className="flex items-center gap-2 relative">
+              <button
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center cursor-pointer transition-transform hover:scale-110 active:scale-95 ${activeTheme.buttonBg}`}
+                title="Simge Değiştir"
+              >
+                {activeDoc.icon || '📝'}
+              </button>
+
+              {showEmojiPicker && (
+                <div
+                  ref={emojiPickerRef}
+                  className={`absolute top-12 left-0 p-3 rounded-2xl border ${activeTheme.editorBg} shadow-xl z-30 grid grid-cols-5 gap-2 w-60`}
+                >
+                  {EMOJIS.map(emoji => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleIconChange(emoji)}
+                      className="w-9 h-9 rounded-xl hover:bg-black/5 flex items-center justify-center text-lg cursor-pointer transition-transform hover:scale-110"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <input
+                type="text"
+                value={activeDoc.title}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                className="bg-transparent font-bold text-lg md:text-xl focus:outline-none border-b-2 border-transparent hover:border-inherit/20 focus:border-amber-400 transition-all py-1 px-1 max-w-[150px] md:max-w-sm"
+                placeholder="Belge Başlığı"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={copyToClipboard}
-              className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 cursor-pointer ${activeTheme.buttonBg} transition-all`}
+              className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer ${activeTheme.buttonBg} transition-all hover:scale-105 active:scale-95`}
               title="Kopyala"
             >
               {copied ? (
                 <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-green-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-green-500 animate-bounce">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
-                  <span className="text-green-500 font-medium">Kopyalandı!</span>
+                  <span className="text-green-500 font-semibold">Kopyalandı!</span>
                 </>
               ) : (
                 <>
@@ -451,7 +527,7 @@ export default function App() {
 
             <button
               onClick={downloadTxt}
-              className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 cursor-pointer ${activeTheme.buttonBg} transition-all`}
+              className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer ${activeTheme.buttonBg} transition-all hover:scale-105 active:scale-95`}
               title="İndir (.txt)"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -463,13 +539,13 @@ export default function App() {
         </header>
 
         {/* Formatting Toolbar */}
-        <div className={`shrink-0 border-b ${activeTheme.toolbarBg} px-4 py-2 flex items-center gap-1 flex-wrap z-10`}>
+        <div className={`shrink-0 border-b ${activeTheme.toolbarBg} px-4 py-2 flex items-center gap-1 flex-wrap z-10 backdrop-blur-md`}>
           {/* Font Ailesi */}
           <select
             id="font-family-select"
             value={selectedFont}
             onChange={(e) => handleFontChange(e.target.value)}
-            className={`text-xs px-2 py-1.5 rounded-md border ${activeTheme.selectBg} focus:outline-none cursor-pointer transition-all h-8`}
+            className={`text-xs px-2 py-1.5 rounded-xl border ${activeTheme.selectBg} focus:outline-none cursor-pointer transition-all h-8`}
             title="Font Ailesi"
           >
             {FONTS.map(f => (
@@ -484,7 +560,7 @@ export default function App() {
             id="font-size-select"
             value={selectedSize}
             onChange={(e) => handleSizeChange(e.target.value)}
-            className={`text-xs px-2 py-1.5 rounded-md border ${activeTheme.selectBg} focus:outline-none cursor-pointer transition-all h-8 w-16`}
+            className={`text-xs px-2 py-1.5 rounded-xl border ${activeTheme.selectBg} focus:outline-none cursor-pointer transition-all h-8 w-16`}
             title="Font Boyutu"
           >
             {FONT_SIZES.map(s => (
@@ -636,34 +712,57 @@ export default function App() {
         </div>
 
         {/* Yazı Editörü */}
-        <main className="flex-1 p-4 overflow-hidden flex flex-col">
-          <div
-            id="rich-text-editor"
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            onInput={handleEditorInput}
-            onKeyUp={updateFormattingState}
-            onMouseUp={updateFormattingState}
-            onSelect={updateFormattingState}
-            data-placeholder="Yazmaya başlayın..."
-            className={`w-full flex-1 p-6 md:p-8 rounded-2xl border ${activeTheme.editorBg} focus:outline-none overflow-y-auto leading-relaxed text-base editor-content`}
-            style={{
-              fontFamily: selectedFont === 'inherit' ? 'Inter, sans-serif' : selectedFont,
-              fontSize: selectedSize + 'px',
-              minHeight: '200px',
-            }}
-          />
+        <main className="flex-1 p-4 md:p-6 overflow-hidden flex flex-col justify-center items-center">
+          <div className="w-full max-w-4xl flex-1 flex flex-col relative">
+            <div
+              id="rich-text-editor"
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={handleEditorInput}
+              onKeyUp={updateFormattingState}
+              onMouseUp={updateFormattingState}
+              onSelect={updateFormattingState}
+              data-placeholder="Karalamaya başla... ✨"
+              className={`w-full flex-1 p-6 md:p-10 rounded-[28px] border-2 ${activeTheme.editorBg} focus:outline-none overflow-y-auto leading-relaxed text-base md:text-lg editor-content transition-all duration-300`}
+              style={{
+                fontFamily: selectedFont === 'inherit' ? '"Quicksand", "Plus Jakarta Sans", sans-serif' : selectedFont,
+                fontSize: selectedSize + 'px',
+                minHeight: '200px',
+              }}
+            />
+          </div>
         </main>
 
         {/* Alt Bilgi Barı */}
-        <footer className="h-10 border-t border-inherit px-6 flex items-center justify-between text-xs opacity-60 z-10 shrink-0">
-          <div className="flex items-center gap-4">
-            <span><strong>Karakter:</strong> {charCount}</span>
-            <span><strong>Kelime:</strong> {wordCount}</span>
+        <footer className="border-t border-inherit/30 px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs z-10 bg-inherit/90 backdrop-blur-md shrink-0">
+          {/* Kelime Hedefi */}
+          <div className="flex items-center gap-3">
+            <span className="font-semibold opacity-70">🎯 Hedef:</span>
+            <select
+              value={wordGoal}
+              onChange={(e) => setWordGoal(Number(e.target.value))}
+              className={`px-2.5 py-1 rounded-xl border text-xs focus:outline-none cursor-pointer ${activeTheme.buttonBg}`}
+            >
+              {WORD_GOALS.map(goal => (
+                <option key={goal} value={goal}>{goal} Kelime</option>
+              ))}
+            </select>
+            <div className="w-32 bg-black/10 rounded-full h-2.5 overflow-hidden relative">
+              <div
+                className={`h-full transition-all duration-500 rounded-full ${isGoalReached ? 'bg-green-500' : 'bg-amber-400'}`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <span className="font-medium opacity-80">
+              {isGoalReached ? 'Başarıldı! 🎉' : `%${Math.round(progressPercent)}`}
+            </span>
           </div>
-          <div>
-            <span>⏱️ {readingTime} dk okuma</span>
+
+          <div className="flex items-center gap-5 opacity-70 font-medium">
+            <span>📝 <strong>Karakter:</strong> {charCount}</span>
+            <span>💬 <strong>Kelime:</strong> {wordCount}</span>
+            <span>☕ <strong>Okuma:</strong> {readingTime} dk</span>
           </div>
         </footer>
       </div>
