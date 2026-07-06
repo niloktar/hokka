@@ -13,7 +13,10 @@
     "@tailwindcss/vite": "^4.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tailwindcss": "^4.3.2"
+    "tailwindcss": "^4.3.2",
+    "y-textarea": "^1.0.2",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",
