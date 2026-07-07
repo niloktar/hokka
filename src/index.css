@@ -57,6 +57,40 @@
   text-decoration: line-through;
 }
 
+.editor-content h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin-top: 0.8em;
+  margin-bottom: 0.4em;
+  line-height: 1.25;
+}
+
+.editor-content h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-top: 0.8em;
+  margin-bottom: 0.4em;
+  line-height: 1.3;
+}
+
+.editor-content h3 {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-top: 0.8em;
+  margin-bottom: 0.4em;
+  line-height: 1.35;
+}
+
+.editor-content blockquote {
+  border-left: 4px solid currentColor;
+  opacity: 0.75;
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 0.75em;
+  font-style: italic;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
