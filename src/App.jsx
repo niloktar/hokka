@@ -1,5 +1,81 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+// Word Art presets
+const WORD_ART_PRESETS = [
+  {
+    id: 'rainbow',
+    label: 'Gökkuşağı',
+    preview: 'Gökkuşağı',
+    style: 'background: linear-gradient(90deg, #ff0080, #ff8c00, #ffe100, #00d2ff, #3a7bd5, #9b59b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'fire',
+    label: 'Ateş',
+    preview: 'Ateş',
+    style: 'background: linear-gradient(180deg, #fff700 0%, #ff8c00 40%, #ff2200 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'ocean',
+    label: 'Okyanus',
+    preview: 'Okyanus',
+    style: 'background: linear-gradient(135deg, #00c6ff, #0072ff, #00c6ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'neon-pink',
+    label: 'Neon Pembe',
+    preview: 'Neon',
+    style: 'color: #ff2d9b; text-shadow: 0 0 8px #ff2d9b, 0 0 20px #ff2d9b, 0 0 40px #ff2d9b; font-weight: 800; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'neon-cyan',
+    label: 'Neon Mavi',
+    preview: 'Neon',
+    style: 'color: #00f5ff; text-shadow: 0 0 8px #00f5ff, 0 0 20px #00f5ff, 0 0 40px #00bfff; font-weight: 800; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'neon-green',
+    label: 'Neon Yeşil',
+    preview: 'Neon',
+    style: 'color: #39ff14; text-shadow: 0 0 8px #39ff14, 0 0 20px #39ff14, 0 0 40px #00ff00; font-weight: 800; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'gold',
+    label: 'Altın',
+    preview: 'Altın',
+    style: 'background: linear-gradient(135deg, #f7971e, #ffd200, #f7971e, #ffd200); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; letter-spacing: 0.03em; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'shadow-3d',
+    label: '3D Gölge',
+    preview: '3D',
+    style: 'color: #fff; text-shadow: 1px 1px 0 #b0b0b0, 2px 2px 0 #a0a0a0, 3px 3px 0 #909090, 4px 4px 0 #808080, 5px 5px 8px rgba(0,0,0,0.4); font-weight: 900; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'retro',
+    label: 'Retro',
+    preview: 'Retro',
+    style: 'background: linear-gradient(180deg, #fd1d1d, #fcb045); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; letter-spacing: 0.08em; font-style: italic; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'galaxy',
+    label: 'Galaksi',
+    preview: 'Galaksi',
+    style: 'background: linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'mint',
+    label: 'Nane',
+    preview: 'Nane',
+    style: 'background: linear-gradient(135deg, #11998e, #38ef7d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline;',
+  },
+  {
+    id: 'chrome',
+    label: 'Krom',
+    preview: 'Krom',
+    style: 'background: linear-gradient(180deg, #e0e0e0 0%, #ffffff 30%, #b0b0b0 50%, #ffffff 70%, #c8c8c8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+  },
+];
+
 const INITIAL_DOCUMENTS = [
   {
     id: '1',
@@ -126,6 +202,69 @@ function Divider() {
   return <div className="w-px h-6 bg-current opacity-10 mx-1" />;
 }
 
+// Word Art Panel
+function WordArtPanel({ onApply, onClose, theme }) {
+  return (
+    <div
+      className="absolute z-50 top-full mt-2 left-0 rounded-2xl border shadow-2xl p-4 word-art-panel"
+      style={{
+        background: 'rgba(15, 15, 25, 0.97)',
+        backdropFilter: 'blur(20px)',
+        borderColor: 'rgba(139, 92, 246, 0.3)',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.15)',
+        width: '320px',
+      }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: '18px' }}>✨</span>
+          <span className="font-bold text-sm" style={{ color: '#c084fc', letterSpacing: '0.05em' }}>WORD ART</span>
+        </div>
+        <button
+          onMouseDown={(e) => { e.preventDefault(); onClose(); }}
+          className="w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-all"
+          style={{ color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.05)' }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+            <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
+      <p className="text-xs mb-3" style={{ color: 'rgba(255,255,255,0.35)' }}>Metni seçip bir stil uygulayın</p>
+      <div className="grid grid-cols-3 gap-2">
+        {WORD_ART_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            onMouseDown={(e) => { e.preventDefault(); onApply(preset); }}
+            className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl cursor-pointer transition-all group word-art-preset-btn"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
+            title={preset.label}
+          >
+            <span
+              style={Object.fromEntries(
+                preset.style.split(';')
+                  .filter(s => s.trim())
+                  .map(s => {
+                    const [k, ...v] = s.split(':');
+                    const key = k.trim().replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+                    return [key, v.join(':').trim()];
+                  })
+              )}
+              className="text-base leading-none select-none"
+            >
+              {preset.preview}
+            </span>
+            <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>{preset.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [documents, setDocuments] = useState(() => {
     const saved = localStorage.getItem('hokka_docs_v2');
@@ -139,6 +278,9 @@ export default function App() {
   const [theme, setTheme] = useState('midnight');
   const [search, setSearch] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [wordArtOpen, setWordArtOpen] = useState(false);
+  const wordArtRef = useRef(null);
+  const savedRangeRef = useRef(null);
   const [copied, setCopied] = useState(false);
 
   // Formatting states
@@ -155,6 +297,33 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('hokka_docs_v2', JSON.stringify(documents));
   }, [documents]);
+
+  // Close word art panel when clicking outside
+  useEffect(() => {
+    if (!wordArtOpen) return;
+    const handler = (e) => {
+      if (wordArtRef.current && !wordArtRef.current.contains(e.target)) {
+        setWordArtOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [wordArtOpen]);
+
+  const saveSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    if (savedRangeRef.current) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRangeRef.current);
+    }
+  }, []);
 
   const activeDoc = documents.find(d => d.id === activeId) || documents[0] || { title: '', content: '' };
   const activeTheme = THEMES[theme];
@@ -193,6 +362,42 @@ export default function App() {
     setTimeout(() => { isUpdatingRef.current = false; }, 0);
     updateFormattingState();
   }, [activeId, updateFormattingState]);
+
+  const applyWordArt = useCallback((preset) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    restoreSelection();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      // No selection — insert sample text
+      const range = sel ? sel.getRangeAt(0) : null;
+      const span = document.createElement('span');
+      span.setAttribute('style', preset.style);
+      span.textContent = 'Word Art';
+      if (range) {
+        range.deleteContents();
+        range.insertNode(span);
+        range.setStartAfter(span);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    } else {
+      const range = sel.getRangeAt(0);
+      const selectedText = range.toString();
+      const span = document.createElement('span');
+      span.setAttribute('style', preset.style);
+      span.textContent = selectedText;
+      range.deleteContents();
+      range.insertNode(span);
+      range.setStartAfter(span);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    handleEditorInput();
+    setWordArtOpen(false);
+  }, [restoreSelection, handleEditorInput]);
 
   const execFormat = useCallback((command, value = null) => {
     if (editorRef.current) {
@@ -633,6 +838,38 @@ export default function App() {
               <path d="M6.96 4.44l10.59 10.59-2.34 2.34H14l-2-2H9.34l-.36.36L7.25 17H5l2.5-2.5L3.44 10.5l3.52-6.06zM19 3L5 17l1.41 1.41L20.41 4.41 19 3z" />
             </svg>
           </ToolbarBtn>
+
+          <Divider />
+
+          {/* Word Art */}
+          <div className="relative" ref={wordArtRef}>
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+                setWordArtOpen(v => !v);
+              }}
+              title="Word Art"
+              className={`
+                flex items-center gap-1.5 px-2.5 h-8 rounded-md border text-xs font-semibold
+                transition-all duration-150 cursor-pointer select-none
+                ${wordArtOpen ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
+              `}
+              style={wordArtOpen ? {} : {}}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path d="M11.25 5.337c0-.355-.186-.676-.401-.959a1.647 1.647 0 01-.349-1.003c0-1.036 1.007-1.875 2.25-1.875S15 2.34 15 3.375c0 .369-.128.713-.349 1.003-.215.283-.401.604-.401.959 0 .332.278.598.61.578 1.91-.114 3.79-.342 5.632-.676a.75.75 0 01.878.645 49.17 49.17 0 01.376 5.452.657.657 0 01-.66.664c-.354 0-.675-.186-.958-.401a1.647 1.647 0 00-1.003-.349c-1.035 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401.31 0 .557.262.534.571a48.774 48.774 0 01-.595 4.845.75.75 0 01-.61.61c-1.82.317-3.673.533-5.555.642a.58.58 0 01-.611-.581c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.035-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959a.641.641 0 01-.658.643 49.118 49.118 0 01-4.708-.36.75.75 0 01-.645-.878c.293-1.614.504-3.257.629-4.924A.53.53 0 005.337 15c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.369 0 .713.128 1.003.349.283.215.604.401.959.401a.656.656 0 00.659-.663 47.703 47.703 0 00-.31-4.82.75.75 0 01.83-.832c1.343.155 2.703.254 4.077.294a.64.64 0 00.657-.642z" />
+              </svg>
+              <span>Word Art</span>
+            </button>
+            {wordArtOpen && (
+              <WordArtPanel
+                onApply={applyWordArt}
+                onClose={() => setWordArtOpen(false)}
+                theme={activeTheme}
+              />
+            )}
+          </div>
         </div>
 
         {/* Yazı Editörü */}
