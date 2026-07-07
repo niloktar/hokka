@@ -4,95 +4,95 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 const WORD_ART_PRESETS = [
   {
     id: 'rainbow',
-    label: 'Gökkuşağı',
-    preview: 'Gökkuşağı',
-    style: 'background: linear-gradient(90deg, #ff0080, #ff8c00, #ffe100, #00d2ff, #3a7bd5, #9b59b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline;',
+    label: 'Rainbow',
+    preview: 'Rainbow',
+    style: 'background: linear-gradient(90deg, #ff0080, #ff8c00, #ffe100, #00d2ff, #3a7bd5, #9b59b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'fire',
-    label: 'Ateş',
-    preview: 'Ateş',
-    style: 'background: linear-gradient(180deg, #fff700 0%, #ff8c00 40%, #ff2200 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; display: inline; vertical-align: baseline;',
+    label: 'Fire',
+    preview: 'Fire',
+    style: 'background: linear-gradient(180deg, #fff700 0%, #ff8c00 40%, #ff2200 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'ocean',
-    label: 'Okyanus',
-    preview: 'Okyanus',
-    style: 'background: linear-gradient(135deg, #00c6ff, #0072ff, #00c6ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline;',
+    label: 'Ocean',
+    preview: 'Ocean',
+    style: 'background: linear-gradient(135deg, #00c6ff, #0072ff, #00c6ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'neon-pink',
-    label: 'Neon Pembe',
+    label: 'Neon Pink',
     preview: 'Neon',
-    style: 'color: #ff2d9b; text-shadow: 0 0 8px #ff2d9b, 0 0 20px #ff2d9b, 0 0 40px #ff2d9b; font-weight: 800; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+    style: 'color: #ff2d9b; text-shadow: 0 0 8px #ff2d9b, 0 0 20px #ff2d9b, 0 0 40px #ff2d9b; font-weight: 800; letter-spacing: 0.05em; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'neon-cyan',
-    label: 'Neon Mavi',
+    label: 'Neon Blue',
     preview: 'Neon',
-    style: 'color: #00f5ff; text-shadow: 0 0 8px #00f5ff, 0 0 20px #00f5ff, 0 0 40px #00bfff; font-weight: 800; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+    style: 'color: #00f5ff; text-shadow: 0 0 8px #00f5ff, 0 0 20px #00f5ff, 0 0 40px #00bfff; font-weight: 800; letter-spacing: 0.05em; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'neon-green',
-    label: 'Neon Yeşil',
+    label: 'Neon Green',
     preview: 'Neon',
-    style: 'color: #39ff14; text-shadow: 0 0 8px #39ff14, 0 0 20px #39ff14, 0 0 40px #00ff00; font-weight: 800; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+    style: 'color: #39ff14; text-shadow: 0 0 8px #39ff14, 0 0 20px #39ff14, 0 0 40px #00ff00; font-weight: 800; letter-spacing: 0.05em; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'gold',
-    label: 'Altın',
-    preview: 'Altın',
-    style: 'background: linear-gradient(135deg, #f7971e, #ffd200, #f7971e, #ffd200); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; letter-spacing: 0.03em; display: inline; vertical-align: baseline;',
+    label: 'Gold',
+    preview: 'Gold',
+    style: 'background: linear-gradient(135deg, #f7971e, #ffd200, #f7971e, #ffd200); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; letter-spacing: 0.03em; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'shadow-3d',
-    label: '3D Gölge',
+    label: '3D Shadow',
     preview: '3D',
-    style: 'color: #fff; text-shadow: 1px 1px 0 #b0b0b0, 2px 2px 0 #a0a0a0, 3px 3px 0 #909090, 4px 4px 0 #808080, 5px 5px 8px rgba(0,0,0,0.4); font-weight: 900; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+    style: 'color: #fff; text-shadow: 1px 1px 0 #b0b0b0, 2px 2px 0 #a0a0a0, 3px 3px 0 #909090, 4px 4px 0 #808080, 5px 5px 8px rgba(0,0,0,0.4); font-weight: 900; letter-spacing: 0.05em; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'retro',
     label: 'Retro',
     preview: 'Retro',
-    style: 'background: linear-gradient(180deg, #fd1d1d, #fcb045); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; letter-spacing: 0.08em; font-style: italic; display: inline; vertical-align: baseline;',
+    style: 'background: linear-gradient(180deg, #fd1d1d, #fcb045); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; letter-spacing: 0.08em; font-style: italic; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'galaxy',
-    label: 'Galaksi',
-    preview: 'Galaksi',
-    style: 'background: linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline;',
+    label: 'Galaxy',
+    preview: 'Galaxy',
+    style: 'background: linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'mint',
-    label: 'Nane',
-    preview: 'Nane',
-    style: 'background: linear-gradient(135deg, #11998e, #38ef7d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline;',
+    label: 'Mint',
+    preview: 'Mint',
+    style: 'background: linear-gradient(135deg, #11998e, #38ef7d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline; vertical-align: baseline; font-size: 32px;',
   },
   {
     id: 'chrome',
-    label: 'Krom',
-    preview: 'Krom',
-    style: 'background: linear-gradient(180deg, #e0e0e0 0%, #ffffff 30%, #b0b0b0 50%, #ffffff 70%, #c8c8c8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; letter-spacing: 0.05em; display: inline; vertical-align: baseline;',
+    label: 'Chrome',
+    preview: 'Chrome',
+    style: 'background: linear-gradient(180deg, #e0e0e0 0%, #ffffff 30%, #b0b0b0 50%, #ffffff 70%, #c8c8c8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 900; letter-spacing: 0.05em; display: inline; vertical-align: baseline; font-size: 32px;',
   },
 ];
 
 const INITIAL_DOCUMENTS = [
   {
     id: '1',
-    title: 'Yeni Bir Başlangıç 🖋️',
-    content: '<p>Bu, <strong>Hokka</strong> editörüne hoş geldiniz! Üstteki araç çubuğu ile metninizi biçimlendirebilirsiniz.</p><p><br></p><p>Özellikler:</p><ul><li>🚀 Font ailesi seçimi</li><li>🔠 Font boyutu ayarlama</li><li><strong>Kalın</strong>, <em>italik</em>, <u>altı çizili</u>, <s>üstü çizili</s> metin stilleri</li><li>🎨 Farklı çalışma temaları</li><li>📂 Otomatik kayıt (LocalStorage)</li></ul><p><br></p><p>Yazmaya başlamak için burayı temizleyebilir veya sol üstteki <strong>+</strong> butonuna basarak yeni bir belge açabilirsiniz.</p>',
-    updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    title: 'Getting Started 🖋️',
+    content: '<p>Welcome to <strong>Hokka</strong>! Use the toolbar above to format your text.</p><p><br></p><p>Features:</p><ul><li>🚀 Font family selection</li><li>🔠 Font size control</li><li><strong>Bold</strong>, <em>italic</em>, <u>underline</u>, <s>strikethrough</s> text styles</li><li>🎨 Beautiful themes</li><li>📂 Auto-save (LocalStorage)</li></ul><p><br></p><p>Clear this page or press <strong>+</strong> in the top left to create a new document.</p>',
+    updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
   },
   {
     id: '2',
-    title: 'Fikir Karalamaları 💡',
-    content: '<p>Harika fikirler genellikle basit karalamalarla başlar.</p><p><br></p><ul><li>Proje fikri: <em>React ile modern bir zengin metin editörü.</em></li><li>Tasarım: <strong>Minimalist</strong>, gözü yormayan renkler, odaklanma modu.</li><li>Teknolojiler: Vite + React + Tailwind v4</li></ul>',
-    updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    title: 'Idea Scratchpad 💡',
+    content: '<p>Great ideas often start with simple sketches.</p><p><br></p><ul><li>Project idea: <em>A modern rich text editor built with React.</em></li><li>Design: <strong>Minimalist</strong>, easy on the eyes, focus mode.</li><li>Stack: Vite + React + Tailwind v4</li></ul>',
+    updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
   }
 ];
 
 const FONTS = [
-  { label: 'Varsayılan', value: 'inherit' },
+  { label: 'Default', value: 'inherit' },
   { label: 'Inter', value: 'Inter, sans-serif' },
   { label: 'Georgia', value: 'Georgia, serif' },
   { label: 'Courier New', value: '"Courier New", monospace' },
@@ -105,79 +105,166 @@ const FONTS = [
 const FONT_SIZES = ['12', '14', '16', '18', '20', '24', '28', '32', '36', '48'];
 
 const THEMES = {
-  midnight: {
-    name: 'Gece Yarısı',
-    bg: 'bg-slate-950 text-slate-100',
-    editorBg: 'bg-slate-900/40 border-slate-800 text-slate-100',
-    sidebarBg: 'bg-slate-900/90 border-slate-800/80',
-    cardBg: 'bg-slate-900/50 border-slate-800/60',
-    accent: 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white',
-    accentText: 'text-violet-400',
-    buttonBg: 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 text-slate-200',
-    activeDocBg: 'bg-violet-950/30 border-violet-800/50 text-violet-200',
-    hoverDocBg: 'hover:bg-slate-800/50',
-    toolbarBg: 'bg-slate-900/95 border-slate-700/60',
-    toolbarBtn: 'hover:bg-slate-700/70 text-slate-300 border-slate-700/40',
-    toolbarBtnActive: 'bg-violet-600/30 text-violet-300 border-violet-500/50',
-    selectBg: 'bg-slate-800 border-slate-700 text-slate-200',
-    placeholderColor: '#64748b',
-    editorColor: '#e2e8f0',
+  peach: {
+    name: 'Peach',
+    bg: 'bg-[#fff5f0] text-[#5c3a21]',
+    editorBg: 'bg-white border-[#fce3d5] text-[#5c3a21]',
+    sidebarBg: 'bg-[#fdf0e9] border-[#f8dbcc]',
+    cardBg: 'bg-white border-[#fce3d5]',
+    accent: 'bg-gradient-to-br from-[#ff9a9e] to-[#fecfef] text-white',
+    accentText: 'text-[#ff7b88]',
+    buttonBg: 'bg-white hover:bg-[#fff5f0] border-[#fce3d5] text-[#5c3a21]',
+    activeDocBg: 'bg-white border-[#ffb3ba] text-[#5c3a21]',
+    hoverDocBg: 'hover:bg-white/60',
+    toolbarBg: 'bg-[#fff5f0]/95 border-[#fce3d5]',
+    toolbarBtn: 'hover:bg-[#fce3d5] text-[#5c3a21] border-[#fce3d5]',
+    toolbarBtnActive: 'bg-[#ff9a9e]/20 text-[#ff7b88] border-[#ff9a9e]/40',
+    selectBg: 'bg-white border-[#fce3d5] text-[#5c3a21]',
+    placeholderColor: '#c4a693',
+    editorColor: '#5c3a21',
+    pageBg: '#f8dfd8',
+    paperBg: '#ffffff',
+    paperColor: '#5c3a21',
+    paperShadow: '0 4px 24px rgba(255,154,158,0.2)',
+    rulerBg: '#fdf0e9',
+    rulerBorder: '#f8dbcc',
+    rulerTick: '#f0b8b0',
+    rulerText: '#d08888',
   },
-  sepia: {
-    name: 'Sepya',
-    bg: 'bg-[#f4ecd8] text-[#433422]',
-    editorBg: 'bg-[#faf6eb] border-[#e4d5b7] text-[#433422]',
-    sidebarBg: 'bg-[#ebdcb9] border-[#d8c399]',
-    cardBg: 'bg-[#faf6eb]/80 border-[#e4d5b7]',
-    accent: 'bg-gradient-to-r from-[#a05a2c] to-[#b86a34] text-white',
-    accentText: 'text-[#a05a2c]',
-    buttonBg: 'bg-[#e4d5b7] hover:bg-[#d8c399] border-[#cbb380] text-[#433422]',
-    activeDocBg: 'bg-[#e4d5b7]/60 border-[#cbb380]/60 text-[#433422]',
-    hoverDocBg: 'hover:bg-[#e4d5b7]/30',
-    toolbarBg: 'bg-[#f0e4c4]/95 border-[#d8c399]',
-    toolbarBtn: 'hover:bg-[#e4d5b7] text-[#433422] border-[#d8c399]',
-    toolbarBtnActive: 'bg-[#a05a2c]/20 text-[#a05a2c] border-[#a05a2c]/40',
-    selectBg: 'bg-[#faf6eb] border-[#d8c399] text-[#433422]',
-    placeholderColor: '#a69275',
-    editorColor: '#433422',
+  matcha: {
+    name: 'Matcha',
+    bg: 'bg-[#f4f7f2] text-[#2c3d24]',
+    editorBg: 'bg-white border-[#e0ebd8] text-[#2c3d24]',
+    sidebarBg: 'bg-[#ebf0e6] border-[#d8e3ce]',
+    cardBg: 'bg-white border-[#e0ebd8]',
+    accent: 'bg-gradient-to-br from-[#a2b997] to-[#cbe3db] text-[#2c3d24]',
+    accentText: 'text-[#87a07a]',
+    buttonBg: 'bg-white hover:bg-[#f4f7f2] border-[#e0ebd8] text-[#2c3d24]',
+    activeDocBg: 'bg-white border-[#c0d6ad] text-[#2c3d24]',
+    hoverDocBg: 'hover:bg-white/60',
+    toolbarBg: 'bg-[#f4f7f2]/95 border-[#e0ebd8]',
+    toolbarBtn: 'hover:bg-[#e0ebd8] text-[#2c3d24] border-[#e0ebd8]',
+    toolbarBtnActive: 'bg-[#a2b997]/20 text-[#87a07a] border-[#a2b997]/40',
+    selectBg: 'bg-white border-[#e0ebd8] text-[#2c3d24]',
+    placeholderColor: '#9fb691',
+    editorColor: '#2c3d24',
+    pageBg: '#d8e8cc',
+    paperBg: '#ffffff',
+    paperColor: '#2c3d24',
+    paperShadow: '0 4px 24px rgba(162,185,151,0.25)',
+    rulerBg: '#ebf0e6',
+    rulerBorder: '#d8e3ce',
+    rulerTick: '#b0c8a0',
+    rulerText: '#87a07a',
   },
-  light: {
-    name: 'Aydınlık',
-    bg: 'bg-slate-50 text-slate-900',
-    editorBg: 'bg-white border-slate-200 text-slate-900',
-    sidebarBg: 'bg-slate-100 border-slate-200',
-    cardBg: 'bg-white border-slate-200/80',
-    accent: 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white',
-    accentText: 'text-indigo-600',
-    buttonBg: 'bg-slate-200/60 hover:bg-slate-200 border-slate-300/80 text-slate-700',
-    activeDocBg: 'bg-indigo-50 border-indigo-200 text-indigo-900',
-    hoverDocBg: 'hover:bg-slate-200/40',
-    toolbarBg: 'bg-white/95 border-slate-200',
-    toolbarBtn: 'hover:bg-slate-100 text-slate-600 border-slate-200',
-    toolbarBtnActive: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    selectBg: 'bg-white border-slate-200 text-slate-700',
-    placeholderColor: '#94a3b8',
-    editorColor: '#0f172a',
+  lavender: {
+    name: 'Lavender',
+    bg: 'bg-[#12101e] text-[#e0ddf3]',
+    editorBg: 'bg-[#18152c]/80 border-[#2d284f] text-[#e0ddf3]',
+    sidebarBg: 'bg-[#0f0d19] border-[#201b35]',
+    cardBg: 'bg-[#18152c]/80 border-[#2d284f]',
+    accent: 'bg-gradient-to-br from-[#b399ff] to-[#ff99f0] text-slate-950 font-semibold',
+    accentText: 'text-[#b399ff]',
+    buttonBg: 'bg-[#18152c] hover:bg-[#201c3b] border-[#2d284f] text-[#e0ddf3]',
+    activeDocBg: 'bg-[#1c1933] border-[#7254d6]/60 text-white',
+    hoverDocBg: 'hover:bg-[#18152c]/50',
+    toolbarBg: 'bg-[#0f0d19]/95 border-[#201b35]',
+    toolbarBtn: 'hover:bg-[#201c3b] text-[#b399ff] border-[#2d284f]',
+    toolbarBtnActive: 'bg-[#7254d6]/30 text-[#d4b8ff] border-[#7254d6]/50',
+    selectBg: 'bg-[#18152c] border-[#2d284f] text-[#e0ddf3]',
+    placeholderColor: '#6e6896',
+    editorColor: '#e0ddf3',
+    pageBg: '#0a0814',
+    paperBg: '#18152c',
+    paperColor: '#e0ddf3',
+    paperShadow: '0 4px 32px rgba(114,84,214,0.3), 0 1px 4px rgba(0,0,0,0.6)',
+    rulerBg: '#0f0d19',
+    rulerBorder: '#201b35',
+    rulerTick: '#3d3560',
+    rulerText: '#6e6896',
   },
-  focus: {
-    name: 'Odak Modu',
-    bg: 'bg-black text-zinc-300',
-    editorBg: 'bg-zinc-950 border-zinc-900 text-zinc-200',
-    sidebarBg: 'bg-zinc-950/40 border-zinc-900/40',
-    cardBg: 'bg-zinc-950/20 border-zinc-900/20',
-    accent: 'bg-gradient-to-r from-zinc-200 to-zinc-400 text-black font-semibold',
-    accentText: 'text-zinc-100',
-    buttonBg: 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300',
-    activeDocBg: 'bg-zinc-900/80 border-zinc-700/80 text-white',
-    hoverDocBg: 'hover:bg-zinc-900/30',
-    toolbarBg: 'bg-zinc-950/95 border-zinc-800/60',
-    toolbarBtn: 'hover:bg-zinc-800 text-zinc-400 border-zinc-800/40',
-    toolbarBtnActive: 'bg-zinc-700/50 text-zinc-100 border-zinc-600/50',
-    selectBg: 'bg-zinc-900 border-zinc-800 text-zinc-300',
-    placeholderColor: '#52525b',
-    editorColor: '#d4d4d8',
+  coffee: {
+    name: 'Coffee',
+    bg: 'bg-[#f9f6f0] text-[#3e2723]',
+    editorBg: 'bg-white border-[#efe5d3] text-[#3e2723]',
+    sidebarBg: 'bg-[#efe5d3] border-[#e2d4bd]',
+    cardBg: 'bg-white border-[#efe5d3]',
+    accent: 'bg-gradient-to-br from-[#a1887f] to-[#d7ccc8] text-[#3e2723] font-semibold',
+    accentText: 'text-[#8d6e63]',
+    buttonBg: 'bg-white hover:bg-[#f9f6f0] border-[#efe5d3] text-[#3e2723]',
+    activeDocBg: 'bg-white border-[#d7ccc8] text-[#3e2723]',
+    hoverDocBg: 'hover:bg-white/60',
+    toolbarBg: 'bg-[#f9f6f0]/95 border-[#efe5d3]',
+    toolbarBtn: 'hover:bg-[#efe5d3] text-[#3e2723] border-[#efe5d3]',
+    toolbarBtnActive: 'bg-[#a1887f]/20 text-[#8d6e63] border-[#a1887f]/40',
+    selectBg: 'bg-white border-[#efe5d3] text-[#3e2723]',
+    placeholderColor: '#baa594',
+    editorColor: '#3e2723',
+    pageBg: '#d8cab4',
+    paperBg: '#ffffff',
+    paperColor: '#3e2723',
+    paperShadow: '0 4px 24px rgba(161,136,127,0.2)',
+    rulerBg: '#efe5d3',
+    rulerBorder: '#e2d4bd',
+    rulerTick: '#c4a882',
+    rulerText: '#a08060',
   }
 };
+
+// Cetvel (Ruler)
+const PAPER_WIDTH = 860;
+const PAPER_PADDING_H = 80;
+const CM_PX = 37.795; // 1cm = 37.795px at 96dpi
+
+function Ruler({ theme }) {
+  const totalCm = Math.ceil(PAPER_WIDTH / CM_PX);
+  const ticks = [];
+  for (let i = 0; i <= totalCm * 2; i++) {
+    const x = i * (CM_PX / 2);
+    const isMajor = i % 2 === 0;
+    const cm = i / 2;
+    ticks.push({ x, isMajor, cm });
+  }
+  return (
+    <div style={{
+      width: PAPER_WIDTH,
+      margin: '0 auto',
+      height: 30,
+      position: 'relative',
+      background: theme.rulerBg,
+      borderBottom: `1px solid ${theme.rulerBorder}`,
+      userSelect: 'none',
+      flexShrink: 0,
+    }}>
+      {/* Margin shading */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: PAPER_PADDING_H, height: '100%', background: 'rgba(0,0,0,0.08)' }} />
+      <div style={{ position: 'absolute', right: 0, top: 0, width: PAPER_PADDING_H, height: '100%', background: 'rgba(0,0,0,0.08)' }} />
+      {/* Margin lines */}
+      <div style={{ position: 'absolute', left: PAPER_PADDING_H, top: 0, width: 1, height: '100%', background: '#4f8ef7', opacity: 0.5 }} />
+      <div style={{ position: 'absolute', right: PAPER_PADDING_H, top: 0, width: 1, height: '100%', background: '#4f8ef7', opacity: 0.5 }} />
+      {ticks.map(({ x, isMajor, cm }) => (
+        <div key={x} style={{ position: 'absolute', left: x, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{
+            width: 1,
+            height: isMajor ? 10 : 5,
+            background: theme.rulerTick,
+          }} />
+          {isMajor && cm > 0 && (
+            <span style={{
+              position: 'absolute',
+              bottom: 12,
+              fontSize: 8,
+              color: theme.rulerText,
+              transform: 'translateX(-50%)',
+              whiteSpace: 'nowrap',
+              fontFamily: 'Inter, sans-serif',
+            }}>{cm}</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // Toolbar button bileşeni
 function ToolbarBtn({ onClick, active, title, children, className = '' }) {
@@ -230,7 +317,7 @@ function WordArtPanel({ onApply, onClose, theme }) {
           </svg>
         </button>
       </div>
-      <p className="text-xs mb-3" style={{ color: 'rgba(255,255,255,0.35)' }}>Metni seçip bir stil uygulayın</p>
+      <p className="text-xs mb-3" style={{ color: 'rgba(255,255,255,0.35)' }}>Select text then pick a style</p>
       <div className="grid grid-cols-3 gap-2">
         {WORD_ART_PRESETS.map((preset) => (
           <button
@@ -244,16 +331,20 @@ function WordArtPanel({ onApply, onClose, theme }) {
             title={preset.label}
           >
             <span
-              style={Object.fromEntries(
-                preset.style.split(';')
-                  .filter(s => s.trim())
-                  .map(s => {
-                    const [k, ...v] = s.split(':');
-                    const key = k.trim().replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-                    return [key, v.join(':').trim()];
-                  })
-              )}
-              className="text-base leading-none select-none"
+              style={{
+                ...Object.fromEntries(
+                  preset.style.split(';')
+                    .filter(s => s.trim())
+                    .map(s => {
+                      const [k, ...v] = s.split(':');
+                      const key = k.trim().replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+                      return [key, v.join(':').trim()];
+                    })
+                ),
+                fontSize: '14px',
+                lineHeight: '1.2'
+              }}
+              className="leading-none select-none"
             >
               {preset.preview}
             </span>
@@ -275,7 +366,7 @@ export default function App() {
     const parsed = saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
     return parsed[0]?.id || '1';
   });
-  const [theme, setTheme] = useState('midnight');
+  const [theme, setTheme] = useState('coffee');
   const [search, setSearch] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [wordArtOpen, setWordArtOpen] = useState(false);
@@ -354,7 +445,7 @@ export default function App() {
         return {
           ...doc,
           content: html,
-          updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+          updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
         };
       }
       return doc;
@@ -362,6 +453,25 @@ export default function App() {
     setTimeout(() => { isUpdatingRef.current = false; }, 0);
     updateFormattingState();
   }, [activeId, updateFormattingState]);
+
+  // Otomatik başlık oluşturma
+  const DEFAULT_TITLE_PATTERNS = ['Untitled Document 📝', 'Untitled Document', ''];
+  useEffect(() => {
+    const doc = documents.find(d => d.id === activeId);
+    if (!doc) return;
+    const isDefaultTitle = DEFAULT_TITLE_PATTERNS.includes(doc.title);
+    if (!isDefaultTitle) return;
+    const text = (doc.content || '').replace(/<[^>]*>/g, '').trim();
+    if (!text) return;
+    // İlk anlamlı cümleden veya kelimelerden başlık üret
+    const firstLine = text.split(/[\n\r.!?]/)[0].trim();
+    const words = firstLine.split(/\s+/).filter(w => w.length > 1).slice(0, 5);
+    if (words.length === 0) return;
+    const generated = words.join(' ');
+    setDocuments(prev => prev.map(d =>
+      d.id === activeId ? { ...d, title: generated } : d
+    ));
+  }, [activeId, documents.find(d => d.id === activeId)?.content]);
 
   const applyWordArt = useCallback((preset) => {
     if (!editorRef.current) return;
@@ -439,7 +549,7 @@ export default function App() {
         return {
           ...doc,
           title,
-          updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+          updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
         };
       }
       return doc;
@@ -449,9 +559,9 @@ export default function App() {
   const createNewDoc = () => {
     const newDoc = {
       id: Date.now().toString(),
-      title: 'Başlıksız Belge 📝',
+      title: 'Untitled Document 📝',
       content: '',
-      updatedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+      updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     };
     setDocuments(prev => [newDoc, ...prev]);
     setActiveId(newDoc.id);
@@ -460,7 +570,7 @@ export default function App() {
   const deleteDoc = (id, e) => {
     e.stopPropagation();
     if (documents.length === 1) {
-      alert('En az bir belge kalmalıdır!');
+      alert('At least one document must remain!');
       return;
     }
     const remaining = documents.filter(d => d.id !== id);
@@ -522,7 +632,7 @@ export default function App() {
           <button
             onClick={createNewDoc}
             className={`p-2 rounded-lg ${activeTheme.accent} transition-transform hover:scale-105 cursor-pointer flex items-center justify-center`}
-            title="Yeni Belge"
+            title="New Document"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -530,7 +640,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Arama Barı */}
+        {/* Search Bar */}
         <div className="p-3">
           <div className="relative">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-inherit opacity-50">
@@ -540,7 +650,7 @@ export default function App() {
             </span>
             <input
               type="text"
-              placeholder="Ara..."
+              placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={`w-full pl-9 pr-4 py-2 text-sm rounded-lg border ${activeTheme.editorBg} focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all`}
@@ -548,48 +658,45 @@ export default function App() {
           </div>
         </div>
 
-        {/* Belge Listesi */}
+        {/* Document List */}
         <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
           {filteredDocs.map((doc) => (
             <div
               key={doc.id}
               onClick={() => setActiveId(doc.id)}
-              className={`p-3 rounded-lg border cursor-pointer transition-all flex flex-col justify-between group ${
+              className={`px-3 py-2.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-2 group ${
                 activeId === doc.id
                   ? activeTheme.activeDocBg
                   : `border-transparent ${activeTheme.hoverDocBg}`
               }`}
             >
-              <div className="flex justify-between items-start gap-2">
-                <h3 className="font-medium text-sm truncate flex-1">{doc.title || 'Başlıksız Belge'}</h3>
-                <button
-                  onClick={(e) => deleteDoc(doc.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 hover:text-red-400 rounded-md transition-all cursor-pointer"
-                  title="Sil"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                  </svg>
-                </button>
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 shrink-0 opacity-50">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <span className="font-medium text-sm truncate">{doc.title || 'Untitled Document'}</span>
               </div>
-              <p className="text-xs opacity-50 truncate mt-1">
-                {doc.content ? doc.content.replace(/<[^>]*>/g, '').substring(0, 45) : 'Boş belge'}
-              </p>
-              <div className="flex justify-between items-center mt-2 pt-1 border-t border-inherit/20">
-                <span className="text-[10px] opacity-40">{doc.updatedAt}</span>
-              </div>
+              <button
+                onClick={(e) => deleteDoc(doc.id, e)}
+                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 hover:text-red-400 rounded-md transition-all cursor-pointer shrink-0"
+                title="Delete"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+              </button>
             </div>
           ))}
           {filteredDocs.length === 0 && (
             <div className="text-center py-8 opacity-40 text-sm">
-              Belge bulunamadı.
+              No documents found.
             </div>
           )}
         </div>
 
-        {/* Sidebar Footer - Tema Değiştirici */}
+        {/* Sidebar Footer - Theme Switcher */}
         <div className="p-4 border-t border-inherit flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider opacity-50">Tema</span>
+          <span className="text-xs font-semibold uppercase tracking-wider opacity-50">Theme</span>
           <div className="grid grid-cols-2 gap-1.5">
             {Object.entries(THEMES).map(([key, value]) => (
               <button
@@ -616,7 +723,7 @@ export default function App() {
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className={`p-2 rounded-lg cursor-pointer ${activeTheme.buttonBg} transition-all`}
-              title={sidebarOpen ? 'Menüyü Kapat' : 'Menüyü Aç'}
+              title={sidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
@@ -627,7 +734,7 @@ export default function App() {
               value={activeDoc.title}
               onChange={(e) => handleTitleChange(e.target.value)}
               className="bg-transparent font-semibold text-lg md:text-xl focus:outline-none border-b border-transparent hover:border-inherit/30 focus:border-violet-500 transition-all py-1 max-w-[200px] md:max-w-sm"
-              placeholder="Başlık Girin"
+              placeholder="Enter Title"
             />
           </div>
 
@@ -635,21 +742,21 @@ export default function App() {
             <button
               onClick={copyToClipboard}
               className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 cursor-pointer ${activeTheme.buttonBg} transition-all`}
-              title="Kopyala"
+              title="Copy"
             >
               {copied ? (
                 <>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-green-500">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
-                  <span className="text-green-500 font-medium">Kopyalandı!</span>
+                  <span className="text-green-500 font-medium">Copied!</span>
                 </>
               ) : (
                 <>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
                   </svg>
-                  <span>Kopyala</span>
+                  <span>Copy</span>
                 </>
               )}
             </button>
@@ -657,12 +764,12 @@ export default function App() {
             <button
               onClick={downloadTxt}
               className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 cursor-pointer ${activeTheme.buttonBg} transition-all`}
-              title="İndir (.txt)"
+              title="Download (.txt)"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
-              <span>İndir</span>
+              <span>Download</span>
             </button>
           </div>
         </header>
@@ -703,7 +810,7 @@ export default function App() {
           <ToolbarBtn
             onClick={() => execFormat('bold')}
             active={isBold}
-            title="Kalın (Ctrl+B)"
+            title="Bold (Ctrl+B)"
             className={isBold ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -715,7 +822,7 @@ export default function App() {
           <ToolbarBtn
             onClick={() => execFormat('italic')}
             active={isItalic}
-            title="İtalik (Ctrl+I)"
+            title="Italic (Ctrl+I)"
             className={isItalic ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -727,7 +834,7 @@ export default function App() {
           <ToolbarBtn
             onClick={() => execFormat('underline')}
             active={isUnderline}
-            title="Altı Çizili (Ctrl+U)"
+            title="Underline (Ctrl+U)"
             className={isUnderline ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -739,7 +846,7 @@ export default function App() {
           <ToolbarBtn
             onClick={() => execFormat('strikeThrough')}
             active={isStrikethrough}
-            title="Üstü Çizili"
+            title="Strikethrough"
             className={isStrikethrough ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -752,7 +859,7 @@ export default function App() {
           {/* Hizalama */}
           <ToolbarBtn
             onClick={() => execFormat('justifyLeft')}
-            title="Sola Hizala"
+            title="Align Left"
             className={activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -762,7 +869,7 @@ export default function App() {
 
           <ToolbarBtn
             onClick={() => execFormat('justifyCenter')}
-            title="Ortala"
+            title="Center"
             className={activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -772,7 +879,7 @@ export default function App() {
 
           <ToolbarBtn
             onClick={() => execFormat('justifyRight')}
-            title="Sağa Hizala"
+            title="Align Right"
             className={activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -785,7 +892,7 @@ export default function App() {
           {/* Liste */}
           <ToolbarBtn
             onClick={() => execFormat('insertUnorderedList')}
-            title="Madde İşaretli Liste"
+            title="Bullet List"
             className={activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -795,7 +902,7 @@ export default function App() {
 
           <ToolbarBtn
             onClick={() => execFormat('insertOrderedList')}
-            title="Numaralı Liste"
+            title="Numbered List"
             className={activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -808,7 +915,7 @@ export default function App() {
           {/* Geri al / Yinele */}
           <ToolbarBtn
             onClick={() => execFormat('undo')}
-            title="Geri Al (Ctrl+Z)"
+            title="Undo (Ctrl+Z)"
             className={activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -818,7 +925,7 @@ export default function App() {
 
           <ToolbarBtn
             onClick={() => execFormat('redo')}
-            title="Yinele (Ctrl+Y)"
+            title="Redo (Ctrl+Y)"
             className={activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -831,7 +938,7 @@ export default function App() {
           {/* Biçimlendirmeyi Temizle */}
           <ToolbarBtn
             onClick={() => execFormat('removeFormat')}
-            title="Biçimlendirmeyi Temizle"
+            title="Clear Formatting"
             className={activeTheme.toolbarBtn}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -857,10 +964,7 @@ export default function App() {
               `}
               style={wordArtOpen ? {} : {}}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                <path d="M11.25 5.337c0-.355-.186-.676-.401-.959a1.647 1.647 0 01-.349-1.003c0-1.036 1.007-1.875 2.25-1.875S15 2.34 15 3.375c0 .369-.128.713-.349 1.003-.215.283-.401.604-.401.959 0 .332.278.598.61.578 1.91-.114 3.79-.342 5.632-.676a.75.75 0 01.878.645 49.17 49.17 0 01.376 5.452.657.657 0 01-.66.664c-.354 0-.675-.186-.958-.401a1.647 1.647 0 00-1.003-.349c-1.035 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401.31 0 .557.262.534.571a48.774 48.774 0 01-.595 4.845.75.75 0 01-.61.61c-1.82.317-3.673.533-5.555.642a.58.58 0 01-.611-.581c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.035-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959a.641.641 0 01-.658.643 49.118 49.118 0 01-4.708-.36.75.75 0 01-.645-.878c.293-1.614.504-3.257.629-4.924A.53.53 0 005.337 15c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.369 0 .713.128 1.003.349.283.215.604.401.959.401a.656.656 0 00.659-.663 47.703 47.703 0 00-.31-4.82.75.75 0 01.83-.832c1.343.155 2.703.254 4.077.294a.64.64 0 00.657-.642z" />
-              </svg>
-              <span>Word Art</span>
+              <span>✨ Word Art</span>
             </button>
             {wordArtOpen && (
               <WordArtPanel
@@ -872,35 +976,60 @@ export default function App() {
           </div>
         </div>
 
-        {/* Yazı Editörü */}
-        <main className="flex-1 p-4 overflow-hidden flex flex-col">
-          <div
-            id="rich-text-editor"
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            onInput={handleEditorInput}
-            onKeyUp={updateFormattingState}
-            onMouseUp={updateFormattingState}
-            onSelect={updateFormattingState}
-            data-placeholder="Yazmaya başlayın..."
-            className={`w-full flex-1 p-6 md:p-8 rounded-2xl border ${activeTheme.editorBg} focus:outline-none overflow-y-auto leading-relaxed text-base editor-content`}
-            style={{
-              fontFamily: selectedFont === 'inherit' ? 'Inter, sans-serif' : selectedFont,
-              fontSize: selectedSize + 'px',
-              minHeight: '200px',
-            }}
-          />
+        {/* Yazı Editörü - Google Docs tarzı kağıt düzeni */}
+        <main
+          className="flex-1 overflow-y-auto flex flex-col"
+          style={{ background: activeTheme.pageBg }}
+        >
+          {/* Cetvel */}
+          <div style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+            <Ruler theme={activeTheme} />
+          </div>
+
+          {/* Kağıt */}
+          <div style={{ padding: '32px 0 80px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div
+              style={{
+                width: PAPER_WIDTH,
+                minHeight: '1100px',
+                background: activeTheme.paperBg,
+                color: activeTheme.paperColor,
+                boxShadow: activeTheme.paperShadow,
+                padding: `60px ${PAPER_PADDING_H}px`,
+                position: 'relative',
+              }}
+            >
+              <div
+                id="rich-text-editor"
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleEditorInput}
+                onKeyUp={updateFormattingState}
+                onMouseUp={updateFormattingState}
+                onSelect={updateFormattingState}
+                data-placeholder="Start writing..."
+                className="focus:outline-none editor-content"
+                style={{
+                  fontFamily: selectedFont === 'inherit' ? 'Inter, sans-serif' : selectedFont,
+                  fontSize: selectedSize + 'px',
+                  minHeight: '980px',
+                  lineHeight: 1.8,
+                  color: activeTheme.paperColor,
+                }}
+              />
+            </div>
+          </div>
         </main>
 
         {/* Alt Bilgi Barı */}
         <footer className="h-10 border-t border-inherit px-6 flex items-center justify-between text-xs opacity-60 z-10 shrink-0">
           <div className="flex items-center gap-4">
-            <span><strong>Karakter:</strong> {charCount}</span>
-            <span><strong>Kelime:</strong> {wordCount}</span>
+            <span><strong>Characters:</strong> {charCount}</span>
+            <span><strong>Words:</strong> {wordCount}</span>
           </div>
           <div>
-            <span>⏱️ {readingTime} dk okuma</span>
+            <span>⏱️ {readingTime} min read</span>
           </div>
         </footer>
       </div>
