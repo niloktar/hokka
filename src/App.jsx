@@ -104,6 +104,29 @@ const FONTS = [
 
 const FONT_SIZES = ['12', '14', '16', '18', '20', '24', '28', '32', '36', '48'];
 
+const FONT_OPTIONS = FONTS.map(f => ({ label: f.label, value: f.value, style: { fontFamily: f.value } }));
+const FONT_SIZE_OPTIONS = FONT_SIZES.map(s => ({ label: s + 'px', value: s }));
+const FORMAT_OPTIONS = [
+  { label: 'Normal Text', value: 'p' },
+  { label: 'Heading 1', value: 'h1', style: { fontWeight: 'bold', fontSize: '15px' } },
+  { label: 'Heading 2', value: 'h2', style: { fontWeight: 'bold', fontSize: '13px' } },
+  { label: 'Heading 3', value: 'h3', style: { fontWeight: 'bold', fontSize: '11px' } },
+  { label: 'Blockquote', value: 'blockquote', style: { fontStyle: 'italic' } }
+];
+const LINE_SPACING_OPTIONS = [
+  { label: 'Single', value: '1.0' },
+  { label: '1.15', value: '1.15' },
+  { label: '1.5', value: '1.5' },
+  { label: '1.8', value: '1.8' },
+  { label: 'Double', value: '2.0' }
+];
+const INSERT_OPTIONS = [
+  { label: '🔗 Link', value: 'link' },
+  { label: '🖼️ Image URL', value: 'image' },
+  { label: '📊 Table Grid', value: 'table' },
+  { label: 'Divider Line', value: 'hr' }
+];
+
 const THEMES = {
   peach: {
     name: 'Peach',
@@ -289,45 +312,349 @@ function Divider() {
   return <div className="w-px h-6 bg-current opacity-10 mx-1" />;
 }
 
+// Elegant Custom Dropdown Component
+function Dropdown({ label, value, options, onChange, title, className = '', selectBg, icon }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  const selectedOption = options.find(opt => opt.value === value) || { label };
+
+  return (
+    <div className="relative inline-block" ref={dropdownRef}>
+      <button
+        onMouseDown={(e) => { e.preventDefault(); setIsOpen(v => !v); }}
+        className={`flex items-center justify-between gap-1 px-2 h-8 rounded-lg border text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${selectBg} ${className}`}
+        title={title}
+      >
+        <span className="truncate max-w-[90px] flex items-center justify-center">
+          {icon ? icon : selectedOption.label}
+        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+          <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div
+          className={`absolute left-0 mt-1.5 rounded-xl border shadow-xl py-1 z-50 overflow-hidden min-w-[140px] max-h-60 overflow-y-auto ${selectBg}`}
+          style={{
+            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)'
+          }}
+        >
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-current/5 transition-colors cursor-pointer flex items-center justify-between gap-2 text-current"
+              style={opt.style ? opt.style : {}}
+            >
+              <span className="truncate">{opt.label}</span>
+              {value === opt.value && (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 opacity-80 shrink-0">
+                  <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Elegant Color Dropdown Component
+function ColorDropdown({ type, value, onChange, theme, title }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  const colors = type === 'text' ? [
+    { value: '#000000', label: 'Default', bg: 'bg-black border border-current/20' },
+    { value: '#ef4444', label: 'Red', bg: 'bg-red-500' },
+    { value: '#3b82f6', label: 'Blue', bg: 'bg-blue-500' },
+    { value: '#10b981', label: 'Green', bg: 'bg-emerald-500' },
+    { value: '#f59e0b', label: 'Orange', bg: 'bg-amber-500' },
+    { value: '#8b5cf6', label: 'Purple', bg: 'bg-violet-500' },
+    { value: '#ec4899', label: 'Pink', bg: 'bg-pink-500' },
+  ] : [
+    { value: 'transparent', label: 'None', bg: 'bg-transparent border border-dashed border-current/30' },
+    { value: '#fef08a', label: 'Yellow', bg: 'bg-yellow-200 border border-yellow-300' },
+    { value: '#bbf7d0', label: 'Green', bg: 'bg-green-200 border border-green-300' },
+    { value: '#93c5fd', label: 'Blue', bg: 'bg-blue-200 border border-blue-300' },
+    { value: '#fbcfe8', label: 'Pink', bg: 'bg-pink-200 border border-pink-300' },
+    { value: '#ddd6fe', label: 'Purple', bg: 'bg-purple-200 border border-purple-300' },
+  ];
+
+  return (
+    <div className="relative inline-block" ref={dropdownRef}>
+      <button
+        onMouseDown={(e) => { e.preventDefault(); setIsOpen(!isOpen); }}
+        className={`flex items-center justify-between gap-1.5 px-2 h-8 rounded-lg border text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${theme.selectBg}`}
+        title={title}
+      >
+        <span className="flex flex-col items-center justify-center gap-0.5 w-4 h-4">
+          {type === 'text' ? (
+            <span className="font-bold text-[10px] leading-none">A</span>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122l9.37-9.37a2.25 2.25 0 00-3.182-3.182l-9.37 9.37a4.5 4.5 0 106.364 6.364l.93-.93" />
+            </svg>
+          )}
+          {value && value !== 'transparent' && (
+            <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: value }} />
+          )}
+        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-3 h-3 opacity-60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+          <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div
+          className={`absolute left-0 mt-1.5 rounded-xl border shadow-xl p-2 z-50 grid grid-cols-4 gap-1.5 ${theme.selectBg}`}
+          style={{ width: '120px' }}
+        >
+          {colors.map((c) => (
+            <button
+              key={c.value}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(c.value);
+                setIsOpen(false);
+              }}
+              className={`w-6 h-6 rounded-full cursor-pointer hover:scale-110 transition-transform relative flex items-center justify-center ${c.bg}`}
+              title={c.label}
+            >
+              {value === c.value && (
+                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Elegant Advanced Color Dropdown Component
+function AdvancedColorDropdown({ value, onChange, theme, title }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const colorInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  const primaryColors = [
+    { value: '#000000', label: 'Black' },
+    { value: '#4b5563', label: 'Gray' },
+    { value: '#ef4444', label: 'Red' },
+    { value: '#3b82f6', label: 'Blue' },
+    { value: '#10b981', label: 'Green' },
+    { value: '#eab308', label: 'Yellow' },
+    { value: '#8b5cf6', label: 'Purple' },
+    { value: '#f97316', label: 'Orange' },
+  ];
+
+  const pastelColors = [
+    { value: '#fca5a5', label: 'Soft Red' },
+    { value: '#93c5fd', label: 'Soft Blue' },
+    { value: '#6ee7b7', label: 'Soft Green' },
+    { value: '#fef08a', label: 'Soft Yellow' },
+    { value: '#c084fc', label: 'Soft Purple' },
+    { value: '#ffedd5', label: 'Soft Orange' },
+    { value: '#fbcfe8', label: 'Soft Pink' },
+    { value: '#e2e8f0', label: 'Slate' },
+  ];
+
+  const vividColors = [
+    { value: '#dc2626', label: 'Vivid Red' },
+    { value: '#2563eb', label: 'Vivid Blue' },
+    { value: '#059669', label: 'Vivid Green' },
+    { value: '#ca8a04', label: 'Vivid Yellow' },
+    { value: '#7c3aed', label: 'Vivid Purple' },
+    { value: '#ea580c', label: 'Vivid Orange' },
+    { value: '#db2777', label: 'Vivid Pink' },
+    { value: '#0891b2', label: 'Vivid Cyan' },
+  ];
+
+  const handleCustomColorClick = () => {
+    colorInputRef.current?.click();
+  };
+
+  const handleCustomColorChange = (e) => {
+    onChange(e.target.value);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative inline-block" ref={dropdownRef}>
+      <button
+        onMouseDown={(e) => { e.preventDefault(); setIsOpen(!isOpen); }}
+        className={`flex items-center justify-between gap-1 px-2.5 h-8 rounded-lg border text-xs font-semibold transition-all duration-150 cursor-pointer select-none ${theme.selectBg}`}
+        title={title}
+      >
+        <span className="flex flex-col items-center justify-center relative w-5 h-5 font-bold">
+          <span className="bg-gradient-to-r from-red-500 via-green-500 to-blue-500 bg-clip-text text-transparent text-sm leading-none">A</span>
+          <span 
+            className="w-4 h-0.5 rounded-full absolute bottom-0" 
+            style={{ backgroundColor: value || '#000000' }} 
+          />
+        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-3 h-3 opacity-60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+          <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div
+          className={`absolute left-0 mt-1.5 rounded-xl border shadow-xl p-3 z-50 flex flex-col gap-3 ${theme.selectBg}`}
+          style={{ width: '220px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)' }}
+        >
+          <div>
+            <div className="text-[9px] font-bold uppercase tracking-wider opacity-60 mb-1">Standard</div>
+            <div className="grid grid-cols-8 gap-1">
+              {primaryColors.map(c => (
+                <button
+                  key={c.value}
+                  onMouseDown={(e) => { e.preventDefault(); onChange(c.value); setIsOpen(false); }}
+                  className="w-4.5 h-4.5 rounded-full cursor-pointer hover:scale-110 transition-transform border border-current/10 relative flex items-center justify-center"
+                  style={{ backgroundColor: c.value }}
+                  title={c.label}
+                >
+                  {value === c.value && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-white mix-blend-difference" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[9px] font-bold uppercase tracking-wider opacity-60 mb-1">Pastel</div>
+            <div className="grid grid-cols-8 gap-1">
+              {pastelColors.map(c => (
+                <button
+                  key={c.value}
+                  onMouseDown={(e) => { e.preventDefault(); onChange(c.value); setIsOpen(false); }}
+                  className="w-4.5 h-4.5 rounded-full cursor-pointer hover:scale-110 transition-transform border border-current/10 relative flex items-center justify-center"
+                  style={{ backgroundColor: c.value }}
+                  title={c.label}
+                >
+                  {value === c.value && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-white mix-blend-difference" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[9px] font-bold uppercase tracking-wider opacity-60 mb-1">Vivid</div>
+            <div className="grid grid-cols-8 gap-1">
+              {vividColors.map(c => (
+                <button
+                  key={c.value}
+                  onMouseDown={(e) => { e.preventDefault(); onChange(c.value); setIsOpen(false); }}
+                  className="w-4.5 h-4.5 rounded-full cursor-pointer hover:scale-110 transition-transform border border-current/10 relative flex items-center justify-center"
+                  style={{ backgroundColor: c.value }}
+                  title={c.label}
+                >
+                  {value === c.value && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-white mix-blend-difference" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-current/10 pt-2 flex items-center justify-between">
+            <span className="text-[9px] font-bold uppercase tracking-wider opacity-60">Custom</span>
+            <button
+              onMouseDown={(e) => { e.preventDefault(); handleCustomColorClick(); }}
+              className="text-[10px] font-semibold flex items-center gap-1.5 px-2 py-1 rounded bg-current/5 hover:bg-current/10 border border-current/10 cursor-pointer text-current"
+            >
+              <span>🎨 Choose...</span>
+            </button>
+            <input
+              type="color"
+              ref={colorInputRef}
+              onChange={handleCustomColorChange}
+              value={value && value.startsWith('#') ? value : '#000000'}
+              className="hidden"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Word Art Panel
 function WordArtPanel({ onApply, onClose, theme }) {
   return (
     <div
-      className="absolute z-50 top-full mt-2 left-0 rounded-2xl border shadow-2xl p-4 word-art-panel"
+      className={`absolute z-50 top-full mt-2 right-0 rounded-2xl border shadow-2xl p-4 word-art-panel ${theme.selectBg}`}
       style={{
-        background: 'rgba(15, 15, 25, 0.97)',
-        backdropFilter: 'blur(20px)',
-        borderColor: 'rgba(139, 92, 246, 0.3)',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.15)',
         width: '320px',
+        boxShadow: '0 15px 40px rgba(0,0,0,0.15)',
       }}
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 border-b border-current/10 pb-2">
         <div className="flex items-center gap-2">
           <span style={{ fontSize: '18px' }}>✨</span>
-          <span className="font-bold text-sm" style={{ color: '#c084fc', letterSpacing: '0.05em' }}>WORD ART</span>
+          <span className="font-bold text-xs tracking-wider uppercase opacity-85">Word Art</span>
         </div>
         <button
           onMouseDown={(e) => { e.preventDefault(); onClose(); }}
-          className="w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-all"
-          style={{ color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.05)' }}
+          className="w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-current/10 text-current opacity-60 hover:opacity-100"
+          style={{ background: 'transparent' }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
             <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
           </svg>
         </button>
       </div>
-      <p className="text-xs mb-3" style={{ color: 'rgba(255,255,255,0.35)' }}>Select text then pick a style</p>
-      <div className="grid grid-cols-3 gap-2">
+      <p className="text-[10px] mb-3 opacity-60">Select text in the document then click a style below:</p>
+      <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
         {WORD_ART_PRESETS.map((preset) => (
           <button
             key={preset.id}
             onMouseDown={(e) => { e.preventDefault(); onApply(preset); }}
-            className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl cursor-pointer transition-all group word-art-preset-btn"
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-            }}
+            className="flex flex-col items-center gap-1.5 p-2 rounded-xl cursor-pointer transition-all border border-current/10 hover:border-current/25 bg-current/5 hover:bg-current/10 text-current"
             title={preset.label}
           >
             <span
@@ -341,17 +668,152 @@ function WordArtPanel({ onApply, onClose, theme }) {
                       return [key, v.join(':').trim()];
                     })
                 ),
-                fontSize: '14px',
+                fontSize: '13px',
                 lineHeight: '1.2'
               }}
-              className="leading-none select-none"
+              className="leading-none select-none font-bold"
             >
               {preset.preview}
             </span>
-            <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>{preset.label}</span>
+            <span className="text-[9px] font-medium opacity-75 truncate w-full text-center">{preset.label}</span>
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Convert rgb(...) color string to hex format
+function rgbToHex(rgb) {
+  if (!rgb) return '#000000';
+  if (rgb.startsWith('#')) return rgb;
+  const match = rgb.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+  if (match) {
+    return '#' + match.slice(1).map(x => {
+      const hex = parseInt(x).toString(16);
+      return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+  }
+  return '#000000';
+}
+
+// Top Menu Bar component
+function MenuBar({
+  theme,
+  onCreateNew,
+  onDownload,
+  onRename,
+  onUndo,
+  onRedo,
+  onCut,
+  onCopy,
+  onPaste,
+  onInsertLink,
+  onInsertImage,
+  onInsertTable,
+  onInsertHr,
+  onFormat,
+}) {
+  const [activeMenu, setActiveMenu] = useState(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!activeMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setActiveMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [activeMenu]);
+
+  const menuItems = {
+    File: [
+      { label: 'New Document', onClick: onCreateNew, shortcut: '⌘N' },
+      { label: 'Download (.txt)', onClick: onDownload, shortcut: '⌘S' },
+      { label: 'Rename', onClick: onRename },
+    ],
+    Edit: [
+      { label: 'Undo', onClick: onUndo, shortcut: '⌘Z' },
+      { label: 'Redo', onClick: onRedo, shortcut: '⌘Y' },
+      { type: 'divider' },
+      { label: 'Cut', onClick: onCut, shortcut: '⌘X' },
+      { label: 'Copy', onClick: onCopy, shortcut: '⌘C' },
+      { label: 'Paste', onClick: onPaste, shortcut: '⌘V' },
+    ],
+    Insert: [
+      { label: 'Image', onClick: onInsertImage },
+      { label: 'Link', onClick: onInsertLink, shortcut: '⌘K' },
+      { label: 'Table Grid', onClick: onInsertTable },
+      { label: 'Horizontal Line', onClick: onInsertHr },
+    ],
+    Format: [
+      { label: 'Bold', onClick: () => onFormat('bold'), shortcut: '⌘B' },
+      { label: 'Italic', onClick: () => onFormat('italic'), shortcut: '⌘I' },
+      { label: 'Underline', onClick: () => onFormat('underline'), shortcut: '⌘U' },
+      { label: 'Strikethrough', onClick: () => onFormat('strikeThrough') },
+      { type: 'divider' },
+      { label: 'Clear Formatting', onClick: () => onFormat('removeFormat') },
+    ],
+    Help: [
+      { label: 'Keyboard Shortcuts', onClick: () => alert('Ctrl+B: Bold\nCtrl+I: Italic\nCtrl+U: Underline\nCtrl+Z: Undo\nCtrl+Y: Redo') },
+      { label: 'About Hokka', onClick: () => alert('Hokka - Sleek Rich Text Editor') },
+    ]
+  };
+
+  return (
+    <div className="flex items-center gap-1 px-4 py-1.5 text-[11px] select-none border-b border-inherit bg-inherit/40 relative z-20" ref={menuRef}>
+      {Object.entries(menuItems).map(([menuName, items]) => {
+        const isOpen = activeMenu === menuName;
+        return (
+          <div key={menuName} className="relative">
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setActiveMenu(isOpen ? null : menuName);
+              }}
+              onMouseEnter={() => {
+                if (activeMenu) setActiveMenu(menuName);
+              }}
+              className={`px-2.5 py-1 rounded hover:bg-current/5 cursor-pointer font-medium transition-all ${
+                isOpen ? 'bg-current/10 font-bold' : ''
+              }`}
+            >
+              {menuName}
+            </button>
+
+            {isOpen && (
+              <div
+                className={`absolute left-0 mt-1 rounded-lg border shadow-xl py-1 z-50 min-w-[170px] ${theme.selectBg}`}
+                style={{ boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
+              >
+                {items.map((item, idx) => {
+                  if (item.type === 'divider') {
+                    return <div key={idx} className="h-px bg-current opacity-10 my-1" />;
+                  }
+                  return (
+                    <button
+                      key={idx}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        item.onClick();
+                        setActiveMenu(null);
+                      }}
+                      className="w-full text-left px-3 py-1.5 hover:bg-current/5 transition-colors cursor-pointer flex items-center justify-between gap-4 text-current text-[11px]"
+                    >
+                      <span>{item.label}</span>
+                      {item.shortcut && (
+                        <span className="opacity-40 text-[9px] tracking-wider font-mono">{item.shortcut}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -381,8 +843,15 @@ export default function App() {
   const [isStrikethrough, setIsStrikethrough] = useState(false);
   const [selectedFont, setSelectedFont] = useState('inherit');
   const [selectedSize, setSelectedSize] = useState('16');
+  const [selectedFormat, setSelectedFormat] = useState('p');
+  const [selectedLineHeight, setSelectedLineHeight] = useState('1.8');
+  const [findOpen, setFindOpen] = useState(false);
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [selectedTextColor, setSelectedTextColor] = useState('#000000');
 
   const editorRef = useRef(null);
+  const imageInputRef = useRef(null);
   const isUpdatingRef = useRef(false);
 
   useEffect(() => {
@@ -434,6 +903,23 @@ export default function App() {
     setIsItalic(document.queryCommandState('italic'));
     setIsUnderline(document.queryCommandState('underline'));
     setIsStrikethrough(document.queryCommandState('strikeThrough'));
+    
+    try {
+      const val = document.queryCommandValue('formatBlock') || 'p';
+      const normalized = val.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (['h1', 'h2', 'h3', 'blockquote', 'p'].includes(normalized)) {
+        setSelectedFormat(normalized);
+      } else {
+        setSelectedFormat('p');
+      }
+    } catch (e) {
+      setSelectedFormat('p');
+    }
+
+    try {
+      const colorVal = document.queryCommandValue('foreColor');
+      setSelectedTextColor(rgbToHex(colorVal));
+    } catch (e) {}
   }, []);
 
   const handleEditorInput = useCallback(() => {
@@ -517,6 +1003,116 @@ export default function App() {
       handleEditorInput();
     }
   }, [updateFormattingState, handleEditorInput]);
+
+  const handleCut = useCallback(() => {
+    document.execCommand('cut');
+  }, []);
+
+  const handleCopy = useCallback(() => {
+    document.execCommand('copy');
+  }, []);
+
+  const handlePaste = useCallback(() => {
+    alert('Pasting via menu is blocked by browser security. Please use Ctrl+V (or ⌘+V) instead.');
+  }, []);
+
+  const handleRename = useCallback(() => {
+    const titleInput = document.querySelector('header input[type="text"]');
+    titleInput?.focus();
+    titleInput?.select();
+  }, []);
+
+  const handleFind = useCallback(() => {
+    if (!findText) return;
+    window.find(findText, false, false, true, false, true, true);
+  }, [findText]);
+
+  const handleReplace = useCallback(() => {
+    if (!editorRef.current || !findText) return;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (range.toString().toLowerCase() === findText.toLowerCase()) {
+        range.deleteContents();
+        const textNode = document.createTextNode(replaceText);
+        range.insertNode(textNode);
+        range.selectNode(textNode);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        handleEditorInput();
+      }
+    }
+  }, [findText, replaceText, handleEditorInput]);
+
+  const handleReplaceAll = useCallback(() => {
+    if (!editorRef.current || !findText) return;
+    const editor = editorRef.current;
+    const escapedFind = findText.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(escapedFind, 'gi');
+    editor.innerHTML = editor.innerHTML.replace(regex, replaceText);
+    handleEditorInput();
+  }, [findText, replaceText, handleEditorInput]);
+
+  const insertLink = useCallback(() => {
+    const url = prompt('Enter link URL (e.g. https://google.com):');
+    if (!url) return;
+    execFormat('createLink', url);
+  }, [execFormat]);
+
+  const insertImage = useCallback(() => {
+    const choice = confirm('Do you want to upload an image from your computer?\n\n(Click OK to upload from file, or Cancel to enter a web URL)');
+    if (choice) {
+      imageInputRef.current?.click();
+    } else {
+      const url = prompt('Enter image URL:');
+      if (url) {
+        execFormat('insertImage', url);
+      }
+    }
+  }, [execFormat]);
+
+  const handleImageUpload = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      if (editorRef.current) {
+        editorRef.current.focus();
+        document.execCommand('insertImage', false, dataUrl);
+        handleEditorInput();
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, [handleEditorInput]);
+
+  const insertTable = useCallback(() => {
+    const cols = parseInt(prompt('Enter number of columns:', '3'), 10);
+    const rows = parseInt(prompt('Enter number of rows:', '3'), 10);
+    if (isNaN(cols) || isNaN(rows) || cols <= 0 || rows <= 0) return;
+    
+    let tableHtml = '<table><thead><tr>';
+    for (let c = 0; c < cols; c++) tableHtml += '<th>Header</th>';
+    tableHtml += '</tr></thead><tbody>';
+    for (let r = 0; r < rows; r++) {
+      tableHtml += '<tr>';
+      for (let c = 0; c < cols; c++) tableHtml += '<td>Cell</td>';
+      tableHtml += '</tr>';
+    }
+    tableHtml += '</tbody></table><p><br></p>';
+    
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand('insertHTML', false, tableHtml);
+      handleEditorInput();
+    }
+  }, [handleEditorInput]);
+
+  const insertHorizontalRule = useCallback(() => {
+    execFormat('insertHorizontalRule');
+  }, [execFormat]);
 
   const handleFontChange = useCallback((font) => {
     setSelectedFont(font);
@@ -771,40 +1367,108 @@ export default function App() {
               </svg>
               <span>Download</span>
             </button>
+
+            <button
+              onClick={() => window.print()}
+              className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5 cursor-pointer ${activeTheme.buttonBg} transition-all`}
+              title="Print (PDF)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.82l-.24 3h5.28l-.24-3M15 9V6.75A2.25 2.25 0 0012.75 4.5h-1.5A2.25 2.25 0 009 6.75V9m-6 3h18M18 9h.008v.008H18V9zm-3 9h.008v.008H15V18z" />
+              </svg>
+              <span>Print</span>
+            </button>
           </div>
         </header>
 
+        {/* Top Menu Bar */}
+        <MenuBar
+          theme={activeTheme}
+          onCreateNew={createNewDoc}
+          onDownload={downloadTxt}
+          onRename={handleRename}
+          onUndo={() => execFormat('undo')}
+          onRedo={() => execFormat('redo')}
+          onCut={handleCut}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
+          onInsertLink={insertLink}
+          onInsertImage={insertImage}
+          onInsertTable={insertTable}
+          onInsertHr={insertHorizontalRule}
+          onFormat={execFormat}
+        />
+
         {/* Formatting Toolbar */}
         <div className={`shrink-0 border-b ${activeTheme.toolbarBg} px-4 py-2 flex items-center gap-1 flex-wrap z-10`}>
-          {/* Font Ailesi */}
-          <select
-            id="font-family-select"
+          {/* Font Family */}
+          <Dropdown
+            label="Font"
             value={selectedFont}
-            onChange={(e) => handleFontChange(e.target.value)}
-            className={`text-xs px-2 py-1.5 rounded-md border ${activeTheme.selectBg} focus:outline-none cursor-pointer transition-all h-8`}
-            title="Font Ailesi"
-          >
-            {FONTS.map(f => (
-              <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+            options={FONT_OPTIONS}
+            onChange={handleFontChange}
+            title="Font Family"
+            selectBg={activeTheme.selectBg}
+          />
 
-          {/* Font Boyutu */}
-          <select
-            id="font-size-select"
+          {/* Font Size */}
+          <Dropdown
+            label="Size"
             value={selectedSize}
-            onChange={(e) => handleSizeChange(e.target.value)}
-            className={`text-xs px-2 py-1.5 rounded-md border ${activeTheme.selectBg} focus:outline-none cursor-pointer transition-all h-8 w-16`}
-            title="Font Boyutu"
-          >
-            {FONT_SIZES.map(s => (
-              <option key={s} value={s}>{s}px</option>
-            ))}
-          </select>
+            options={FONT_SIZE_OPTIONS}
+            onChange={handleSizeChange}
+            title="Font Size"
+            selectBg={activeTheme.selectBg}
+            className="w-16"
+          />
+
+          {/* Text Style */}
+          <Dropdown
+            label="Style"
+            value={selectedFormat}
+            options={FORMAT_OPTIONS}
+            onChange={(val) => execFormat('formatBlock', val)}
+            title="Text Style"
+            selectBg={activeTheme.selectBg}
+            className="w-28"
+          />
+
+
+          {/* Highlight Color Picker */}
+          <ColorDropdown
+            type="highlight"
+            value=""
+            onChange={(val) => execFormat('hiliteColor', val)}
+            theme={activeTheme}
+            title="Highlight Color"
+          />
+
+
+          {/* Insert Dropdown */}
+          <Dropdown
+            label="Insert..."
+            value=""
+            options={INSERT_OPTIONS}
+            onChange={(val) => {
+              if (val === 'link') insertLink();
+              else if (val === 'image') insertImage();
+              else if (val === 'table') insertTable();
+              else if (val === 'hr') insertHorizontalRule();
+            }}
+            title="Insert Element"
+            selectBg={activeTheme.selectBg}
+            className="w-24"
+          />
 
           <Divider />
+
+          {/* Text Color Picker (Advanced) */}
+          <AdvancedColorDropdown
+            value={selectedTextColor}
+            onChange={(val) => execFormat('foreColor', val)}
+            theme={activeTheme}
+            title="Text Color"
+          />
 
           {/* Bold */}
           <ToolbarBtn
@@ -887,6 +1551,16 @@ export default function App() {
             </svg>
           </ToolbarBtn>
 
+          <ToolbarBtn
+            onClick={() => execFormat('justifyFull')}
+            title="Justify"
+            className={activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M3 5.25a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 5.25zm0 4.5a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 9.75zm0 4.5a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75zm0 4.5a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75z" />
+            </svg>
+          </ToolbarBtn>
+
           <Divider />
 
           {/* Liste */}
@@ -910,28 +1584,21 @@ export default function App() {
             </svg>
           </ToolbarBtn>
 
-          <Divider />
-
-          {/* Geri al / Yinele */}
-          <ToolbarBtn
-            onClick={() => execFormat('undo')}
-            title="Undo (Ctrl+Z)"
-            className={activeTheme.toolbarBtn}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-              <path fillRule="evenodd" d="M9.53 2.47a.75.75 0 010 1.06L4.81 8.25H15a6.75 6.75 0 010 13.5h-3a.75.75 0 010-1.5h3a5.25 5.25 0 100-10.5H4.81l4.72 4.72a.75.75 0 11-1.06 1.06l-6-6a.75.75 0 010-1.06l6-6a.75.75 0 011.06 0z" clipRule="evenodd" />
-            </svg>
-          </ToolbarBtn>
-
-          <ToolbarBtn
-            onClick={() => execFormat('redo')}
-            title="Redo (Ctrl+Y)"
-            className={activeTheme.toolbarBtn}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-              <path fillRule="evenodd" d="M14.47 2.47a.75.75 0 011.06 0l6 6a.75.75 0 010 1.06l-6 6a.75.75 0 11-1.06-1.06l4.72-4.72H9a5.25 5.25 0 100 10.5h3a.75.75 0 010 1.5H9a6.75 6.75 0 010-13.5h10.19l-4.72-4.72a.75.75 0 010-1.06z" clipRule="evenodd" />
-            </svg>
-          </ToolbarBtn>
+          {/* Line Spacing */}
+          <Dropdown
+            label="Spacing"
+            value={selectedLineHeight}
+            options={LINE_SPACING_OPTIONS}
+            onChange={setSelectedLineHeight}
+            title="Line Spacing"
+            selectBg={activeTheme.selectBg}
+            className="w-12"
+            icon={
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13m-13 4h13m-13 4h13m-13 4h13M19 4v16m0 0l-3-3m3 3l3-3M19 4l-3 3m3-3l3 3" />
+              </svg>
+            }
+          />
 
           <Divider />
 
@@ -974,7 +1641,65 @@ export default function App() {
               />
             )}
           </div>
+
+          <Divider />
+
+          {/* Find & Replace Toggle Button */}
+          <ToolbarBtn
+            onClick={() => setFindOpen(v => !v)}
+            active={findOpen}
+            title="Find & Replace"
+            className={findOpen ? activeTheme.toolbarBtnActive : activeTheme.toolbarBtn}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
+            </svg>
+          </ToolbarBtn>
         </div>
+
+        {/* Find & Replace Panel */}
+        {findOpen && (
+          <div className={`px-4 py-2 border-b flex items-center gap-3 flex-wrap ${activeTheme.toolbarBg}`}>
+            <div className="flex items-center gap-1">
+              <span className="text-xs opacity-60 font-medium">Find:</span>
+              <input
+                type="text"
+                placeholder="Find text..."
+                value={findText}
+                onChange={(e) => setFindText(e.target.value)}
+                className={`px-2 py-1 text-xs rounded border focus:outline-none focus:ring-1 focus:ring-violet-500 max-w-[150px] ${activeTheme.selectBg}`}
+              />
+            </div>
+            <button
+              onClick={handleFind}
+              className={`px-3 py-1 text-xs rounded font-medium cursor-pointer transition-all ${activeTheme.buttonBg}`}
+            >
+              Find Next
+            </button>
+            <div className="flex items-center gap-1">
+              <span className="text-xs opacity-60 font-medium">Replace:</span>
+              <input
+                type="text"
+                placeholder="Replace with..."
+                value={replaceText}
+                onChange={(e) => setReplaceText(e.target.value)}
+                className={`px-2 py-1 text-xs rounded border focus:outline-none focus:ring-1 focus:ring-violet-500 max-w-[150px] ${activeTheme.selectBg}`}
+              />
+            </div>
+            <button
+              onClick={handleReplace}
+              className={`px-3 py-1 text-xs rounded font-medium cursor-pointer transition-all ${activeTheme.buttonBg}`}
+            >
+              Replace
+            </button>
+            <button
+              onClick={handleReplaceAll}
+              className={`px-3 py-1 text-xs rounded font-medium cursor-pointer transition-all ${activeTheme.buttonBg}`}
+            >
+              Replace All
+            </button>
+          </div>
+        )}
 
         {/* Yazı Editörü - Google Docs tarzı kağıt düzeni */}
         <main
@@ -1014,7 +1739,7 @@ export default function App() {
                   fontFamily: selectedFont === 'inherit' ? 'Inter, sans-serif' : selectedFont,
                   fontSize: selectedSize + 'px',
                   minHeight: '980px',
-                  lineHeight: 1.8,
+                  lineHeight: selectedLineHeight,
                   color: activeTheme.paperColor,
                 }}
               />
@@ -1031,7 +1756,16 @@ export default function App() {
           <div>
             <span>⏱️ {readingTime} min read</span>
           </div>
-        </footer>
+         </footer>
+
+        {/* Hidden Input for Image Upload */}
+        <input
+          type="file"
+          ref={imageInputRef}
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
       </div>
     </div>
   );

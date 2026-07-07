@@ -116,3 +116,70 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Styled tables inside editor */
+.editor-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5em 0;
+  font-size: 0.95em;
+}
+
+.editor-content th, 
+.editor-content td {
+  border: 1px solid currentColor;
+  opacity: 0.85;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.editor-content th {
+  font-weight: 600;
+  background-color: rgba(128, 128, 128, 0.08);
+}
+
+.editor-content hr {
+  border: 0;
+  border-top: 2px solid currentColor;
+  opacity: 0.2;
+  margin: 1.5em 0;
+}
+
+.editor-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1em 0;
+  display: block;
+}
+
+.editor-content a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+/* Print styles for Google Docs feel */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #rich-text-editor, 
+  #rich-text-editor * {
+    visibility: visible;
+  }
+  #rich-text-editor {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    color: #000000 !important;
+  }
+  /* Ensure page margins on print */
+  @page {
+    margin: 20mm;
+  }
+}
