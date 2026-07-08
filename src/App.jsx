@@ -976,12 +976,54 @@ export default function App() {
     }));
   }, [activeId]);
 
+  const handleRemoteTitleChange = useCallback((newTitle) => {
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === activeId) {
+        return {
+          ...doc,
+          title: newTitle,
+          updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        };
+      }
+      return doc;
+    }));
+  }, [activeId]);
+
+  const activeDoc = documents.find(d => d.id === activeId) || documents[0] || { title: '', content: '' };
+
   const collaboration = useCollaboration({
     editorRef,
     activeDocId: activeId,
+    title: activeDoc.title,
     isUpdatingRef,
     onRemoteChange: handleRemoteChange,
+    onRemoteTitleChange: handleRemoteTitleChange,
   });
+
+  // Handle joining from URL parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      setDocuments(prev => {
+        const exists = prev.find(d => d.id === roomParam);
+        if (exists) {
+          setTimeout(() => setActiveId(roomParam), 0);
+          return prev;
+        } else {
+          // Create a new document for this room
+          const newSharedDoc = {
+            id: roomParam,
+            title: 'Shared Document',
+            content: '',
+            updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          };
+          setTimeout(() => setActiveId(roomParam), 0);
+          return [newSharedDoc, ...prev];
+        }
+      });
+    }
+  }, []); // Run only once on mount
 
   useEffect(() => {
     localStorage.setItem('hokka_docs_v2', JSON.stringify(documents));
@@ -1014,7 +1056,6 @@ export default function App() {
     }
   }, []);
 
-  const activeDoc = documents.find(d => d.id === activeId) || documents[0] || { title: '', content: '' };
   const activeTheme = THEMES[theme];
 
   // Editor içeriğini dokümana yükle
@@ -1088,7 +1129,8 @@ export default function App() {
     setDocuments(prev => prev.map(d =>
       d.id === activeId ? { ...d, title: generated } : d
     ));
-  }, [activeId, documents.find(d => d.id === activeId)?.content]);
+    collaboration.pushLocalTitleChange(generated);
+  }, [activeId, documents.find(d => d.id === activeId)?.content, collaboration.pushLocalTitleChange]);
 
   const applyWordArt = useCallback((preset) => {
     if (!editorRef.current) return;
@@ -1281,6 +1323,7 @@ export default function App() {
       }
       return doc;
     }));
+    collaboration.pushLocalTitleChange(title);
   };
 
   const createNewDoc = () => {

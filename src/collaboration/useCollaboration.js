@@ -20,10 +20,12 @@ import {
  * @param {Object} params
  * @param {React.RefObject} params.editorRef - contentEditable div referansı
  * @param {string} params.activeDocId - Aktif doküman ID'si
+ * @param {string} params.title - Aktif dokümanın başlığı
  * @param {React.RefObject} params.isUpdatingRef - Editör güncelleme kilidi
- * @param {Function} params.onRemoteChange - Uzak değişiklik callback'i (html) => void
+ * @param {Function} params.onRemoteChange - Uzak içerik değişiklik callback'i (html) => void
+ * @param {Function} params.onRemoteTitleChange - Uzak başlık değişiklik callback'i (title) => void
  */
-export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemoteChange }) {
+export function useCollaboration({ editorRef, activeDocId, title, isUpdatingRef, onRemoteChange, onRemoteTitleChange }) {
   // --- State ---
   const [isConnected, setIsConnected] = useState(false);
   const [roomId, setRoomId] = useState(null);
@@ -41,13 +43,19 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
   const ydocRef = useRef(null);
   const providerRef = useRef(null);
   const ytextRef = useRef(null);
+  const ytitleRef = useRef(null);
   const lastHtmlRef = useRef('');
+  const lastTitleRef = useRef(title);
   const activeDocIdRef = useRef(activeDocId);
 
-  // Keep activeDocId ref in sync
+  // Keep refs in sync
   useEffect(() => {
     activeDocIdRef.current = activeDocId;
   }, [activeDocId]);
+
+  useEffect(() => {
+    lastTitleRef.current = title;
+  }, [title]);
 
   // Persist user info
   useEffect(() => {
@@ -67,6 +75,7 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
     const rid = roomName || generateRoomId();
     const ydoc = new Y.Doc();
     const ytext = ydoc.getText('content');
+    const ytitle = ydoc.getText('title');
 
     const provider = new WebsocketProvider(COLLAB_SERVER_URL, `hokka-${rid}`, ydoc);
 
@@ -86,8 +95,12 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
       if (!isSynced) return;
 
       const currentHtml = editorRef.current?.innerHTML || '';
+      const currentTitle = lastTitleRef.current || 'Untitled Document 📝';
+      
       const ytextContent = ytext.toString();
+      const ytitleContent = ytitle.toString();
 
+      // Content Sync
       if (ytextContent === '' && currentHtml !== '') {
         // Odada henüz içerik yok — yerel içeriği gönder
         ytext.insert(0, currentHtml);
@@ -102,9 +115,18 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
           setTimeout(() => { isUpdatingRef.current = false; }, 0);
         }
       }
+
+      // Title Sync
+      if (ytitleContent === '') {
+         // Odada başlık yok - yerel başlığı gönder
+         ytitle.insert(0, currentTitle);
+      } else if (ytitleContent !== currentTitle) {
+         // Odada başlık var - onu al
+         onRemoteTitleChange?.(ytitleContent);
+      }
     });
 
-    // Uzak değişiklikleri izle
+    // Uzak içerik değişiklikleri izle
     ytext.observe((event) => {
       if (event.transaction.local) return; // Yerel değişiklikleri atla
 
@@ -134,6 +156,13 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
       setTimeout(() => { isUpdatingRef.current = false; }, 0);
     });
 
+    // Uzak başlık değişiklikleri izle
+    ytitle.observe((event) => {
+      if (event.transaction.local) return;
+      const newTitle = ytitle.toString();
+      onRemoteTitleChange?.(newTitle);
+    });
+
     // Awareness değişiklikleri — uzak kullanıcılar
     const onAwarenessChange = () => {
       const states = provider.awareness.getStates();
@@ -155,6 +184,7 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
     ydocRef.current = ydoc;
     providerRef.current = provider;
     ytextRef.current = ytext;
+    ytitleRef.current = ytitle;
     setRoomId(rid);
 
     // URL'yi güncelle (paylaşım kolaylığı)
@@ -162,7 +192,7 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
     url.searchParams.set('room', rid);
     window.history.replaceState({}, '', url.toString());
 
-  }, [localUser, editorRef, isUpdatingRef, onRemoteChange]);
+  }, [localUser, editorRef, isUpdatingRef, onRemoteChange, onRemoteTitleChange]);
 
   // --- Leave Room ---
   const leaveRoom = useCallback(() => {
@@ -171,6 +201,7 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
     providerRef.current = null;
     ydocRef.current = null;
     ytextRef.current = null;
+    ytitleRef.current = null;
     lastHtmlRef.current = '';
     setRoomId(null);
     setIsConnected(false);
@@ -182,7 +213,7 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
     window.history.replaceState({}, '', url.toString());
   }, []);
 
-  // --- Push Local Change ---
+  // --- Push Local Content Change ---
   const pushLocalChange = useCallback((newHtml) => {
     if (!ytextRef.current) return;
     const oldHtml = lastHtmlRef.current;
@@ -190,6 +221,15 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
 
     applyDiff(ytextRef.current, oldHtml, newHtml);
     lastHtmlRef.current = newHtml;
+  }, []);
+
+  // --- Push Local Title Change ---
+  const pushLocalTitleChange = useCallback((newTitle) => {
+    if (!ytitleRef.current) return;
+    const oldTitle = ytitleRef.current.toString();
+    if (newTitle === oldTitle) return;
+
+    applyDiff(ytitleRef.current, oldTitle, newTitle);
   }, []);
 
   // --- Update Cursor Position (Awareness) ---
@@ -232,7 +272,10 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
   const prevDocIdRef = useRef(activeDocId);
   useEffect(() => {
     if (prevDocIdRef.current !== activeDocId && roomId) {
-      leaveRoom();
+      // Yalnızca farklı bir dokümana geçtiysek ve o doküman bu oda değilse çık
+      if (activeDocId !== roomId) {
+        leaveRoom();
+      }
     }
     prevDocIdRef.current = activeDocId;
   }, [activeDocId, roomId, leaveRoom]);
@@ -254,6 +297,7 @@ export function useCollaboration({ editorRef, activeDocId, isUpdatingRef, onRemo
     leaveRoom,
     setUserName,
     pushLocalChange,
+    pushLocalTitleChange,
     updateCursorPosition,
   };
 }
