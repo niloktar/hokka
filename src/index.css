@@ -187,3 +187,19 @@ body {
     margin: 20mm;
   }
 }
+
+/* Ruler handle hover/active effects */
+.ruler-handle:hover > div:last-child {
+  filter: brightness(0.9);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.ruler-handle:active > div:last-child {
+  filter: brightness(0.82);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transform: scaleY(1.05);
+}
+
+.ruler-handle:hover > div:first-child {
+  filter: brightness(0.85);
+}

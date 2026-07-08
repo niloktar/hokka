@@ -239,7 +239,7 @@ const PAPER_WIDTH = 860;
 const PAPER_PADDING_H = 80;
 const CM_PX = 37.795; // 1cm = 37.795px at 96dpi
 
-function Ruler({ theme }) {
+function Ruler({ theme, leftMargin, rightMargin, onLeftMarginChange, onRightMarginChange }) {
   const totalCm = Math.ceil(PAPER_WIDTH / CM_PX);
   const ticks = [];
   for (let i = 0; i <= totalCm * 2; i++) {
@@ -248,23 +248,124 @@ function Ruler({ theme }) {
     const cm = i / 2;
     ticks.push({ x, isMajor, cm });
   }
+
+  const rulerRef = useRef(null);
+  const draggingRef = useRef(null); // 'left' | 'right' | null
+
+  const handleMouseDown = useCallback((side, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    draggingRef.current = side;
+
+    const onMouseMove = (moveEvent) => {
+      if (!rulerRef.current || !draggingRef.current) return;
+      const rect = rulerRef.current.getBoundingClientRect();
+      const x = moveEvent.clientX - rect.left;
+
+      if (draggingRef.current === 'left') {
+        const clamped = Math.max(20, Math.min(x, PAPER_WIDTH - rightMargin - 100));
+        onLeftMarginChange(Math.round(clamped));
+      } else {
+        const fromRight = PAPER_WIDTH - (moveEvent.clientX - rect.left);
+        const clamped = Math.max(20, Math.min(fromRight, PAPER_WIDTH - leftMargin - 100));
+        onRightMarginChange(Math.round(clamped));
+      }
+    };
+
+    const onMouseUp = () => {
+      draggingRef.current = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [leftMargin, rightMargin, onLeftMarginChange, onRightMarginChange]);
+
+  // Elegant handle renderer
+  const renderHandle = (side) => {
+    const marginVal = side === 'left' ? leftMargin : rightMargin;
+    const posStyle = side === 'left'
+      ? { left: marginVal - 7 }
+      : { right: rightMargin - 7 };
+
+    return (
+      <div
+        onMouseDown={(e) => handleMouseDown(side, e)}
+        title={side === 'left' ? 'Sol kenar boşluğunu sürükle' : 'Sağ kenar boşluğunu sürükle'}
+        className="ruler-handle"
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          ...posStyle,
+          width: 14,
+          height: 20,
+          cursor: 'col-resize',
+          zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+        }}
+      >
+        {/* Top triangle pointer */}
+        <div style={{
+          width: 0,
+          height: 0,
+          borderLeft: '5px solid transparent',
+          borderRight: '5px solid transparent',
+          borderBottom: `5px solid ${theme.rulerTick}`,
+          flexShrink: 0,
+        }} />
+        {/* Bottom rectangular grip */}
+        <div style={{
+          width: 10,
+          height: 12,
+          background: `linear-gradient(180deg, ${theme.rulerBg} 0%, ${theme.rulerTick} 100%)`,
+          borderRadius: '0 0 3px 3px',
+          border: `1px solid ${theme.rulerTick}`,
+          borderTop: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1.5,
+        }}>
+          {/* Grip lines */}
+          <div style={{ width: 5, height: 1, background: theme.rulerText, borderRadius: 1, opacity: 0.6 }} />
+          <div style={{ width: 5, height: 1, background: theme.rulerText, borderRadius: 1, opacity: 0.4 }} />
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div style={{
-      width: PAPER_WIDTH,
-      margin: '0 auto',
-      height: 30,
-      position: 'relative',
-      background: theme.rulerBg,
-      borderBottom: `1px solid ${theme.rulerBorder}`,
-      userSelect: 'none',
-      flexShrink: 0,
-    }}>
+    <div
+      ref={rulerRef}
+      style={{
+        width: PAPER_WIDTH,
+        margin: '0 auto',
+        height: 30,
+        position: 'relative',
+        background: theme.rulerBg,
+        borderBottom: `1px solid ${theme.rulerBorder}`,
+        userSelect: 'none',
+        flexShrink: 0,
+      }}
+    >
       {/* Margin shading */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: PAPER_PADDING_H, height: '100%', background: 'rgba(0,0,0,0.08)' }} />
-      <div style={{ position: 'absolute', right: 0, top: 0, width: PAPER_PADDING_H, height: '100%', background: 'rgba(0,0,0,0.08)' }} />
-      {/* Margin lines */}
-      <div style={{ position: 'absolute', left: PAPER_PADDING_H, top: 0, width: 1, height: '100%', background: '#4f8ef7', opacity: 0.5 }} />
-      <div style={{ position: 'absolute', right: PAPER_PADDING_H, top: 0, width: 1, height: '100%', background: '#4f8ef7', opacity: 0.5 }} />
+      <div style={{ position: 'absolute', left: 0, top: 0, width: leftMargin, height: '100%', background: 'rgba(0,0,0,0.06)', transition: 'width 0.05s' }} />
+      <div style={{ position: 'absolute', right: 0, top: 0, width: rightMargin, height: '100%', background: 'rgba(0,0,0,0.06)', transition: 'width 0.05s' }} />
+      {/* Margin lines — subtle dashed */}
+      <div style={{ position: 'absolute', left: leftMargin, top: 0, width: 1, height: '100%', background: theme.rulerTick, opacity: 0.45, transition: 'left 0.05s' }} />
+      <div style={{ position: 'absolute', right: rightMargin, top: 0, width: 1, height: '100%', background: theme.rulerTick, opacity: 0.45, transition: 'right 0.05s' }} />
+      {/* Draggable handles */}
+      {renderHandle('left')}
+      {renderHandle('right')}
       {ticks.map(({ x, isMajor, cm }) => (
         <div key={x} style={{ position: 'absolute', left: x, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{
@@ -835,6 +936,10 @@ export default function App() {
   const wordArtRef = useRef(null);
   const savedRangeRef = useRef(null);
   const [copied, setCopied] = useState(false);
+
+  // Ruler margin state
+  const [leftMargin, setLeftMargin] = useState(PAPER_PADDING_H);
+  const [rightMargin, setRightMargin] = useState(PAPER_PADDING_H);
 
   // Formatting states
   const [isBold, setIsBold] = useState(false);
@@ -1708,7 +1813,13 @@ export default function App() {
         >
           {/* Cetvel */}
           <div style={{ position: 'sticky', top: 0, zIndex: 5 }}>
-            <Ruler theme={activeTheme} />
+            <Ruler
+              theme={activeTheme}
+              leftMargin={leftMargin}
+              rightMargin={rightMargin}
+              onLeftMarginChange={setLeftMargin}
+              onRightMarginChange={setRightMargin}
+            />
           </div>
 
           {/* Kağıt */}
@@ -1720,7 +1831,7 @@ export default function App() {
                 background: activeTheme.paperBg,
                 color: activeTheme.paperColor,
                 boxShadow: activeTheme.paperShadow,
-                padding: `60px ${PAPER_PADDING_H}px`,
+                padding: `60px ${rightMargin}px 60px ${leftMargin}px`,
                 position: 'relative',
               }}
             >
