@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCollaboration } from './collaboration/useCollaboration';
+import CollaborationBar from './collaboration/CollaborationBar';
+import CursorOverlay from './collaboration/CursorOverlay';
 
 // Word Art presets
 const WORD_ART_PRESETS = [
@@ -959,6 +962,27 @@ export default function App() {
   const imageInputRef = useRef(null);
   const isUpdatingRef = useRef(false);
 
+  // --- Collaboration Layer ---
+  const handleRemoteChange = useCallback((html) => {
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === activeId) {
+        return {
+          ...doc,
+          content: html,
+          updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        };
+      }
+      return doc;
+    }));
+  }, [activeId]);
+
+  const collaboration = useCollaboration({
+    editorRef,
+    activeDocId: activeId,
+    isUpdatingRef,
+    onRemoteChange: handleRemoteChange,
+  });
+
   useEffect(() => {
     localStorage.setItem('hokka_docs_v2', JSON.stringify(documents));
   }, [documents]);
@@ -1043,7 +1067,9 @@ export default function App() {
     }));
     setTimeout(() => { isUpdatingRef.current = false; }, 0);
     updateFormattingState();
-  }, [activeId, updateFormattingState]);
+    // Collaboration: yerel değişikliği Yjs'e gönder
+    collaboration.pushLocalChange(html);
+  }, [activeId, updateFormattingState, collaboration.pushLocalChange]);
 
   // Otomatik başlık oluşturma
   const DEFAULT_TITLE_PATTERNS = ['Untitled Document 📝', 'Untitled Document', ''];
@@ -1419,7 +1445,7 @@ export default function App() {
       {/* Ana Çalışma Alanı */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Üst Bar */}
-        <header className="h-14 border-b border-inherit px-4 flex items-center justify-between gap-4 z-10 shrink-0">
+        <header className="h-14 border-b border-inherit px-4 flex items-center justify-between gap-4 z-30 shrink-0 relative">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1483,6 +1509,11 @@ export default function App() {
               </svg>
               <span>Print</span>
             </button>
+
+            <div className="collab-divider" />
+
+            {/* Collaboration Bar */}
+            <CollaborationBar collaboration={collaboration} theme={activeTheme} />
           </div>
         </header>
 
@@ -1835,15 +1866,18 @@ export default function App() {
                 position: 'relative',
               }}
             >
+              {/* Remote cursor overlay */}
+              <CursorOverlay remoteUsers={collaboration.remoteUsers} editorRef={editorRef} />
+
               <div
                 id="rich-text-editor"
                 ref={editorRef}
                 contentEditable
                 suppressContentEditableWarning
                 onInput={handleEditorInput}
-                onKeyUp={updateFormattingState}
-                onMouseUp={updateFormattingState}
-                onSelect={updateFormattingState}
+                onKeyUp={() => { updateFormattingState(); collaboration.updateCursorPosition(); }}
+                onMouseUp={() => { updateFormattingState(); collaboration.updateCursorPosition(); }}
+                onSelect={() => { updateFormattingState(); collaboration.updateCursorPosition(); }}
                 data-placeholder="Start writing..."
                 className="focus:outline-none editor-content"
                 style={{
