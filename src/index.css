@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Roboto:wght@400;500&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Fira+Code:wght@400;500&display=swap');
+@import "./collaboration/collaboration.css";
 @import "tailwindcss";
 
 @theme {
@@ -186,4 +187,20 @@ body {
   @page {
     margin: 20mm;
   }
+}
+
+/* Ruler handle hover/active effects */
+.ruler-handle:hover > div:last-child {
+  filter: brightness(0.9);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.ruler-handle:active > div:last-child {
+  filter: brightness(0.82);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transform: scaleY(1.05);
+}
+
+.ruler-handle:hover > div:first-child {
+  filter: brightness(0.85);
 }

@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCollaboration } from './collaboration/useCollaboration';
+import CollaborationBar from './collaboration/CollaborationBar';
+import CursorOverlay from './collaboration/CursorOverlay';
+import { useAuth } from './auth/AuthContext';
+import LoginScreen from './auth/LoginScreen';
 
 // Word Art presets
 const WORD_ART_PRESETS = [
@@ -239,7 +244,7 @@ const PAPER_WIDTH = 860;
 const PAPER_PADDING_H = 80;
 const CM_PX = 37.795; // 1cm = 37.795px at 96dpi
 
-function Ruler({ theme }) {
+function Ruler({ theme, leftMargin, rightMargin, onLeftMarginChange, onRightMarginChange }) {
   const totalCm = Math.ceil(PAPER_WIDTH / CM_PX);
   const ticks = [];
   for (let i = 0; i <= totalCm * 2; i++) {
@@ -248,23 +253,124 @@ function Ruler({ theme }) {
     const cm = i / 2;
     ticks.push({ x, isMajor, cm });
   }
+
+  const rulerRef = useRef(null);
+  const draggingRef = useRef(null); // 'left' | 'right' | null
+
+  const handleMouseDown = useCallback((side, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    draggingRef.current = side;
+
+    const onMouseMove = (moveEvent) => {
+      if (!rulerRef.current || !draggingRef.current) return;
+      const rect = rulerRef.current.getBoundingClientRect();
+      const x = moveEvent.clientX - rect.left;
+
+      if (draggingRef.current === 'left') {
+        const clamped = Math.max(20, Math.min(x, PAPER_WIDTH - rightMargin - 100));
+        onLeftMarginChange(Math.round(clamped));
+      } else {
+        const fromRight = PAPER_WIDTH - (moveEvent.clientX - rect.left);
+        const clamped = Math.max(20, Math.min(fromRight, PAPER_WIDTH - leftMargin - 100));
+        onRightMarginChange(Math.round(clamped));
+      }
+    };
+
+    const onMouseUp = () => {
+      draggingRef.current = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [leftMargin, rightMargin, onLeftMarginChange, onRightMarginChange]);
+
+  // Elegant handle renderer
+  const renderHandle = (side) => {
+    const marginVal = side === 'left' ? leftMargin : rightMargin;
+    const posStyle = side === 'left'
+      ? { left: marginVal - 7 }
+      : { right: rightMargin - 7 };
+
+    return (
+      <div
+        onMouseDown={(e) => handleMouseDown(side, e)}
+        title={side === 'left' ? 'Sol kenar boşluğunu sürükle' : 'Sağ kenar boşluğunu sürükle'}
+        className="ruler-handle"
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          ...posStyle,
+          width: 14,
+          height: 20,
+          cursor: 'col-resize',
+          zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+        }}
+      >
+        {/* Top triangle pointer */}
+        <div style={{
+          width: 0,
+          height: 0,
+          borderLeft: '5px solid transparent',
+          borderRight: '5px solid transparent',
+          borderBottom: `5px solid ${theme.rulerTick}`,
+          flexShrink: 0,
+        }} />
+        {/* Bottom rectangular grip */}
+        <div style={{
+          width: 10,
+          height: 12,
+          background: `linear-gradient(180deg, ${theme.rulerBg} 0%, ${theme.rulerTick} 100%)`,
+          borderRadius: '0 0 3px 3px',
+          border: `1px solid ${theme.rulerTick}`,
+          borderTop: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1.5,
+        }}>
+          {/* Grip lines */}
+          <div style={{ width: 5, height: 1, background: theme.rulerText, borderRadius: 1, opacity: 0.6 }} />
+          <div style={{ width: 5, height: 1, background: theme.rulerText, borderRadius: 1, opacity: 0.4 }} />
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div style={{
-      width: PAPER_WIDTH,
-      margin: '0 auto',
-      height: 30,
-      position: 'relative',
-      background: theme.rulerBg,
-      borderBottom: `1px solid ${theme.rulerBorder}`,
-      userSelect: 'none',
-      flexShrink: 0,
-    }}>
+    <div
+      ref={rulerRef}
+      style={{
+        width: PAPER_WIDTH,
+        margin: '0 auto',
+        height: 30,
+        position: 'relative',
+        background: theme.rulerBg,
+        borderBottom: `1px solid ${theme.rulerBorder}`,
+        userSelect: 'none',
+        flexShrink: 0,
+      }}
+    >
       {/* Margin shading */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: PAPER_PADDING_H, height: '100%', background: 'rgba(0,0,0,0.08)' }} />
-      <div style={{ position: 'absolute', right: 0, top: 0, width: PAPER_PADDING_H, height: '100%', background: 'rgba(0,0,0,0.08)' }} />
-      {/* Margin lines */}
-      <div style={{ position: 'absolute', left: PAPER_PADDING_H, top: 0, width: 1, height: '100%', background: '#4f8ef7', opacity: 0.5 }} />
-      <div style={{ position: 'absolute', right: PAPER_PADDING_H, top: 0, width: 1, height: '100%', background: '#4f8ef7', opacity: 0.5 }} />
+      <div style={{ position: 'absolute', left: 0, top: 0, width: leftMargin, height: '100%', background: 'rgba(0,0,0,0.06)', transition: 'width 0.05s' }} />
+      <div style={{ position: 'absolute', right: 0, top: 0, width: rightMargin, height: '100%', background: 'rgba(0,0,0,0.06)', transition: 'width 0.05s' }} />
+      {/* Margin lines — subtle dashed */}
+      <div style={{ position: 'absolute', left: leftMargin, top: 0, width: 1, height: '100%', background: theme.rulerTick, opacity: 0.45, transition: 'left 0.05s' }} />
+      <div style={{ position: 'absolute', right: rightMargin, top: 0, width: 1, height: '100%', background: theme.rulerTick, opacity: 0.45, transition: 'right 0.05s' }} />
+      {/* Draggable handles */}
+      {renderHandle('left')}
+      {renderHandle('right')}
       {ticks.map(({ x, isMajor, cm }) => (
         <div key={x} style={{ position: 'absolute', left: x, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{
@@ -819,6 +925,26 @@ function MenuBar({
 }
 
 export default function App() {
+  const { user, signOutUser } = useAuth();
+
+  // Giriş yapılmamış veya yükleniyor
+  if (user === undefined) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0c1e' }}>
+        <div style={{ width: 40, height: 40, border: '3px solid rgba(139,92,246,0.3)', borderTop: '3px solid #8b5cf6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (user === null) {
+    return <LoginScreen />;
+  }
+
+  return <AppInner user={user} signOutUser={signOutUser} />;
+}
+
+function AppInner({ user, signOutUser }) {
   const [documents, setDocuments] = useState(() => {
     const saved = localStorage.getItem('hokka_docs_v2');
     return saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
@@ -829,12 +955,19 @@ export default function App() {
     return parsed[0]?.id || '1';
   });
   const [theme, setTheme] = useState('coffee');
+
+  // URL'den oda linkini oku (mod artık izin haritasından geliyor)
+  // isViewOnly, collaboration.myPermission ile belirleniyor
   const [search, setSearch] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [wordArtOpen, setWordArtOpen] = useState(false);
   const wordArtRef = useRef(null);
   const savedRangeRef = useRef(null);
   const [copied, setCopied] = useState(false);
+
+  // Ruler margin state
+  const [leftMargin, setLeftMargin] = useState(PAPER_PADDING_H);
+  const [rightMargin, setRightMargin] = useState(PAPER_PADDING_H);
 
   // Formatting states
   const [isBold, setIsBold] = useState(false);
@@ -853,6 +986,73 @@ export default function App() {
   const editorRef = useRef(null);
   const imageInputRef = useRef(null);
   const isUpdatingRef = useRef(false);
+
+  // --- Collaboration Layer ---
+  const handleRemoteChange = useCallback((html) => {
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === activeId) {
+        return {
+          ...doc,
+          content: html,
+          updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        };
+      }
+      return doc;
+    }));
+  }, [activeId]);
+
+  const handleRemoteTitleChange = useCallback((newTitle) => {
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === activeId) {
+        return {
+          ...doc,
+          title: newTitle,
+          updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        };
+      }
+      return doc;
+    }));
+  }, [activeId]);
+
+  const activeDoc = documents.find(d => d.id === activeId) || documents[0] || { title: '', content: '' };
+
+  const collaboration = useCollaboration({
+    editorRef,
+    activeDocId: activeId,
+    title: activeDoc.title,
+    isUpdatingRef,
+    onRemoteChange: handleRemoteChange,
+    onRemoteTitleChange: handleRemoteTitleChange,
+    googleUser: user,
+  });
+
+  // İzin: oda aktifse collaboration'dan al, yoksa tam erişim
+  const isViewOnly = collaboration.roomId ? collaboration.myPermission === 'view' : false;
+
+  // Handle joining from URL parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      setDocuments(prev => {
+        const exists = prev.find(d => d.id === roomParam);
+        if (exists) {
+          setTimeout(() => setActiveId(roomParam), 0);
+          return prev;
+        } else {
+          // Create a new document for this room
+          const newSharedDoc = {
+            id: roomParam,
+            title: 'Shared Document',
+            content: '',
+            updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          };
+          setTimeout(() => setActiveId(roomParam), 0);
+          return [newSharedDoc, ...prev];
+        }
+      });
+    }
+  }, []); // Run only once on mount
 
   useEffect(() => {
     localStorage.setItem('hokka_docs_v2', JSON.stringify(documents));
@@ -885,7 +1085,6 @@ export default function App() {
     }
   }, []);
 
-  const activeDoc = documents.find(d => d.id === activeId) || documents[0] || { title: '', content: '' };
   const activeTheme = THEMES[theme];
 
   // Editor içeriğini dokümana yükle
@@ -938,7 +1137,9 @@ export default function App() {
     }));
     setTimeout(() => { isUpdatingRef.current = false; }, 0);
     updateFormattingState();
-  }, [activeId, updateFormattingState]);
+    // Collaboration: yerel değişikliği Yjs'e gönder
+    collaboration.pushLocalChange(html);
+  }, [activeId, updateFormattingState, collaboration.pushLocalChange]);
 
   // Otomatik başlık oluşturma
   const DEFAULT_TITLE_PATTERNS = ['Untitled Document 📝', 'Untitled Document', ''];
@@ -957,7 +1158,8 @@ export default function App() {
     setDocuments(prev => prev.map(d =>
       d.id === activeId ? { ...d, title: generated } : d
     ));
-  }, [activeId, documents.find(d => d.id === activeId)?.content]);
+    collaboration.pushLocalTitleChange(generated);
+  }, [activeId, documents.find(d => d.id === activeId)?.content, collaboration.pushLocalTitleChange]);
 
   const applyWordArt = useCallback((preset) => {
     if (!editorRef.current) return;
@@ -1150,6 +1352,7 @@ export default function App() {
       }
       return doc;
     }));
+    collaboration.pushLocalTitleChange(title);
   };
 
   const createNewDoc = () => {
@@ -1314,7 +1517,7 @@ export default function App() {
       {/* Ana Çalışma Alanı */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Üst Bar */}
-        <header className="h-14 border-b border-inherit px-4 flex items-center justify-between gap-4 z-10 shrink-0">
+        <header className="h-14 border-b border-inherit px-4 flex items-center justify-between gap-4 z-30 shrink-0 relative">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1377,6 +1580,29 @@ export default function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.82l-.24 3h5.28l-.24-3M15 9V6.75A2.25 2.25 0 0012.75 4.5h-1.5A2.25 2.25 0 009 6.75V9m-6 3h18M18 9h.008v.008H18V9zm-3 9h.008v.008H15V18z" />
               </svg>
               <span>Print</span>
+            </button>
+
+            <div className="collab-divider" />
+
+            {/* Collaboration Bar */}
+            <CollaborationBar collaboration={collaboration} theme={activeTheme} />
+
+            <div className="collab-divider" />
+
+            {/* Kullanıcı avatarı + çıkış */}
+            <button
+              className="user-header-btn"
+              onClick={signOutUser}
+              title={`${user.displayName} — Çıkış yap`}
+            >
+              {user.photoURL ? (
+                <img src={user.photoURL} alt={user.displayName} className="user-header-photo" />
+              ) : (
+                <span className="user-header-animal">{collaboration.localUser.animal || '🐾'}</span>
+              )}
+              <span className="user-header-name" style={{ opacity: 0.8, fontSize: 11 }}>
+                {user.displayName?.split(' ')[0]}
+              </span>
             </button>
           </div>
         </header>
@@ -1708,7 +1934,13 @@ export default function App() {
         >
           {/* Cetvel */}
           <div style={{ position: 'sticky', top: 0, zIndex: 5 }}>
-            <Ruler theme={activeTheme} />
+            <Ruler
+              theme={activeTheme}
+              leftMargin={leftMargin}
+              rightMargin={rightMargin}
+              onLeftMarginChange={setLeftMargin}
+              onRightMarginChange={setRightMargin}
+            />
           </div>
 
           {/* Kağıt */}
@@ -1720,20 +1952,23 @@ export default function App() {
                 background: activeTheme.paperBg,
                 color: activeTheme.paperColor,
                 boxShadow: activeTheme.paperShadow,
-                padding: `60px ${PAPER_PADDING_H}px`,
+                padding: `60px ${rightMargin}px 60px ${leftMargin}px`,
                 position: 'relative',
               }}
             >
+              {/* Remote cursor overlay */}
+              <CursorOverlay remoteUsers={collaboration.remoteUsers} editorRef={editorRef} />
+
               <div
                 id="rich-text-editor"
                 ref={editorRef}
-                contentEditable
+                contentEditable={!isViewOnly}
                 suppressContentEditableWarning
-                onInput={handleEditorInput}
-                onKeyUp={updateFormattingState}
-                onMouseUp={updateFormattingState}
-                onSelect={updateFormattingState}
-                data-placeholder="Start writing..."
+                onInput={isViewOnly ? undefined : handleEditorInput}
+                onKeyUp={() => { updateFormattingState(); collaboration.updateCursorPosition(); }}
+                onMouseUp={() => { updateFormattingState(); collaboration.updateCursorPosition(); }}
+                onSelect={() => { updateFormattingState(); collaboration.updateCursorPosition(); }}
+                data-placeholder={isViewOnly ? '' : 'Start writing...'}
                 className="focus:outline-none editor-content"
                 style={{
                   fontFamily: selectedFont === 'inherit' ? 'Inter, sans-serif' : selectedFont,
@@ -1741,8 +1976,17 @@ export default function App() {
                   minHeight: '980px',
                   lineHeight: selectedLineHeight,
                   color: activeTheme.paperColor,
+                  cursor: isViewOnly ? 'default' : undefined,
                 }}
               />
+
+              {/* View-only banner */}
+              {isViewOnly && (
+                <div className="view-only-banner">
+                  <span>👁️</span>
+                  <span>Görüntüleme modunda — düzenleme devre dışı</span>
+                </div>
+              )}
             </div>
           </div>
         </main>

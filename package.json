@@ -7,13 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "collab-server": "node server.js",
+    "dev:collab": "npx -y concurrently \"vite\" \"node server.js\""
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.2",
+    "firebase": "^12.16.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwindcss": "^4.3.2",
+    "ws": "^8.21.0",
     "y-textarea": "^1.0.2",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.31"
