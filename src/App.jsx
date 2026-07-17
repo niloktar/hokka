@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useCollaboration } from './collaboration/useCollaboration';
 import CollaborationBar from './collaboration/CollaborationBar';
 import CursorOverlay from './collaboration/CursorOverlay';
+import { useAuth } from './auth/AuthContext';
+import LoginScreen from './auth/LoginScreen';
 
 // Word Art presets
 const WORD_ART_PRESETS = [
@@ -923,6 +925,26 @@ function MenuBar({
 }
 
 export default function App() {
+  const { user, signOutUser } = useAuth();
+
+  // Giriş yapılmamış veya yükleniyor
+  if (user === undefined) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0c1e' }}>
+        <div style={{ width: 40, height: 40, border: '3px solid rgba(139,92,246,0.3)', borderTop: '3px solid #8b5cf6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (user === null) {
+    return <LoginScreen />;
+  }
+
+  return <AppInner user={user} signOutUser={signOutUser} />;
+}
+
+function AppInner({ user, signOutUser }) {
   const [documents, setDocuments] = useState(() => {
     const saved = localStorage.getItem('hokka_docs_v2');
     return saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
@@ -933,6 +955,9 @@ export default function App() {
     return parsed[0]?.id || '1';
   });
   const [theme, setTheme] = useState('coffee');
+
+  // URL'den oda linkini oku (mod artık izin haritasından geliyor)
+  // isViewOnly, collaboration.myPermission ile belirleniyor
   const [search, setSearch] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [wordArtOpen, setWordArtOpen] = useState(false);
@@ -998,7 +1023,11 @@ export default function App() {
     isUpdatingRef,
     onRemoteChange: handleRemoteChange,
     onRemoteTitleChange: handleRemoteTitleChange,
+    googleUser: user,
   });
+
+  // İzin: oda aktifse collaboration'dan al, yoksa tam erişim
+  const isViewOnly = collaboration.roomId ? collaboration.myPermission === 'view' : false;
 
   // Handle joining from URL parameter
   useEffect(() => {
@@ -1557,6 +1586,24 @@ export default function App() {
 
             {/* Collaboration Bar */}
             <CollaborationBar collaboration={collaboration} theme={activeTheme} />
+
+            <div className="collab-divider" />
+
+            {/* Kullanıcı avatarı + çıkış */}
+            <button
+              className="user-header-btn"
+              onClick={signOutUser}
+              title={`${user.displayName} — Çıkış yap`}
+            >
+              {user.photoURL ? (
+                <img src={user.photoURL} alt={user.displayName} className="user-header-photo" />
+              ) : (
+                <span className="user-header-animal">{collaboration.localUser.animal || '🐾'}</span>
+              )}
+              <span className="user-header-name" style={{ opacity: 0.8, fontSize: 11 }}>
+                {user.displayName?.split(' ')[0]}
+              </span>
+            </button>
           </div>
         </header>
 
@@ -1915,13 +1962,13 @@ export default function App() {
               <div
                 id="rich-text-editor"
                 ref={editorRef}
-                contentEditable
+                contentEditable={!isViewOnly}
                 suppressContentEditableWarning
-                onInput={handleEditorInput}
+                onInput={isViewOnly ? undefined : handleEditorInput}
                 onKeyUp={() => { updateFormattingState(); collaboration.updateCursorPosition(); }}
                 onMouseUp={() => { updateFormattingState(); collaboration.updateCursorPosition(); }}
                 onSelect={() => { updateFormattingState(); collaboration.updateCursorPosition(); }}
-                data-placeholder="Start writing..."
+                data-placeholder={isViewOnly ? '' : 'Start writing...'}
                 className="focus:outline-none editor-content"
                 style={{
                   fontFamily: selectedFont === 'inherit' ? 'Inter, sans-serif' : selectedFont,
@@ -1929,8 +1976,17 @@ export default function App() {
                   minHeight: '980px',
                   lineHeight: selectedLineHeight,
                   color: activeTheme.paperColor,
+                  cursor: isViewOnly ? 'default' : undefined,
                 }}
               />
+
+              {/* View-only banner */}
+              {isViewOnly && (
+                <div className="view-only-banner">
+                  <span>👁️</span>
+                  <span>Görüntüleme modunda — düzenleme devre dışı</span>
+                </div>
+              )}
             </div>
           </div>
         </main>

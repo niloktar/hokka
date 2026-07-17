@@ -12,9 +12,55 @@ export const USER_COLORS = [
   '#4FC3F7', // cyan
   '#FF8A65', // coral
   '#4DB6AC', // teal
+  '#F06292', // pink
+  '#AED581', // lime
 ];
 
-// Rastgele kullanıcı adı üretimi
+// Hayvan emojileri — her kullanıcıya UID'e göre sabit atanır
+export const ANIMAL_EMOJIS = [
+  '🦊', // tilki
+  '🐼', // panda
+  '🦁', // aslan
+  '🐧', // penguen
+  '🦋', // kelebek
+  '🐬', // yunus
+  '🦜', // papağan
+  '🦄', // unicorn
+  '🐸', // kurbağa
+  '🦔', // kirpi
+  '🐨', // koala
+  '🦊', // tilki 2
+  '🐺', // kurt
+  '🦉', // baykuş
+  '🦦', // su samuru
+];
+
+/**
+ * Kullanıcının UID'sine göre deterministik hayvan emojisi döndürür.
+ * Aynı kullanıcı her zaman aynı hayvanı alır.
+ */
+export function getAnimalForUser(uid) {
+  if (!uid) return '🐾';
+  let hash = 0;
+  for (let i = 0; i < uid.length; i++) {
+    hash = (hash * 31 + uid.charCodeAt(i)) >>> 0;
+  }
+  return ANIMAL_EMOJIS[hash % ANIMAL_EMOJIS.length];
+}
+
+/**
+ * Kullanıcının UID'sine göre deterministik renk döndürür.
+ */
+export function getColorForUser(uid) {
+  if (!uid) return USER_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < uid.length; i++) {
+    hash = (hash * 31 + uid.charCodeAt(i)) >>> 0;
+  }
+  return USER_COLORS[hash % USER_COLORS.length];
+}
+
+// Rastgele kullanıcı adı üretimi (anonim kullanıcılar için)
 const ADJECTIVES = ['Happy', 'Swift', 'Clever', 'Bright', 'Bold', 'Calm', 'Keen', 'Wise'];
 const ANIMALS = ['Panda', 'Fox', 'Owl', 'Wolf', 'Bear', 'Hawk', 'Lynx', 'Deer'];
 

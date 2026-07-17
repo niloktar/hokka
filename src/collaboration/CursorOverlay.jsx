@@ -2,17 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { getPositionFromOffset } from './constants';
 
 /**
- * CursorOverlay — Uzak kullanıcı imleçlerini gösteren overlay
- *
- * Editör kağıdı üzerine position:absolute ile yerleşir.
- * Her uzak kullanıcı için renkli cursor çizgisi + isim etiketi render eder.
+ * CursorOverlay — Uzak kullanıcı imleçlerini hayvan emojisi + isimle gösterir
  */
 export default function CursorOverlay({ remoteUsers, editorRef }) {
   const [positions, setPositions] = useState([]);
   const rafRef = useRef(null);
 
   useEffect(() => {
-    // Pozisyonları hesapla
     const updatePositions = () => {
       if (!editorRef.current || remoteUsers.length === 0) {
         setPositions([]);
@@ -28,6 +24,8 @@ export default function CursorOverlay({ remoteUsers, editorRef }) {
             clientId: user.clientId,
             name: user.name,
             color: user.color,
+            animal: user.animal || '🐾',
+            permission: user.permission || 'edit',
             top: pos.top,
             left: pos.left,
             height: pos.height,
@@ -40,7 +38,6 @@ export default function CursorOverlay({ remoteUsers, editorRef }) {
 
     updatePositions();
 
-    // Scroll ve resize'da pozisyonları güncelle
     const editor = editorRef.current;
     const scrollContainer = editor?.closest('main');
 
@@ -66,7 +63,7 @@ export default function CursorOverlay({ remoteUsers, editorRef }) {
       {positions.map(cursor => (
         <div
           key={cursor.clientId}
-          className="collab-cursor"
+          className={`collab-cursor ${cursor.permission === 'view' ? 'collab-cursor-view' : ''}`}
           style={{
             top: cursor.top,
             left: cursor.left,
@@ -78,6 +75,7 @@ export default function CursorOverlay({ remoteUsers, editorRef }) {
             className="collab-cursor-label"
             style={{ backgroundColor: cursor.color }}
           >
+            <span className="collab-cursor-animal">{cursor.animal}</span>
             {cursor.name}
           </span>
         </div>
