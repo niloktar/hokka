@@ -1024,6 +1024,7 @@ function AppInner({ user, signOutUser }) {
     onRemoteChange: handleRemoteChange,
     onRemoteTitleChange: handleRemoteTitleChange,
     googleUser: user,
+    isOwner: !activeDoc.isShared,
   });
 
   // İzin: oda aktifse collaboration'dan al, yoksa tam erişim
@@ -1032,7 +1033,7 @@ function AppInner({ user, signOutUser }) {
   // Handle joining from URL parameter
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('room');
+    const roomParam = params.get('docId') || params.get('room'); // Hem docId hem de eski room'u destekle
     if (roomParam) {
       setDocuments(prev => {
         const exists = prev.find(d => d.id === roomParam);
@@ -1040,12 +1041,13 @@ function AppInner({ user, signOutUser }) {
           setTimeout(() => setActiveId(roomParam), 0);
           return prev;
         } else {
-          // Create a new document for this room
+          // Bu oda/belge için yeni bir yerel belge kaydı oluştur
           const newSharedDoc = {
             id: roomParam,
-            title: 'Shared Document',
+            title: 'Paylaşılan Belge 📝',
             content: '',
-            updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            isShared: true, // Sahibi olmadığımızı, başkasından gelen link olduğunu işaretliyoruz
           };
           setTimeout(() => setActiveId(roomParam), 0);
           return [newSharedDoc, ...prev];

@@ -28,6 +28,7 @@ export function useCollaboration({
   onRemoteChange,
   onRemoteTitleChange,
   googleUser,
+  isOwner = true,
 }) {
   // --- State ---
   const [isConnected, setIsConnected] = useState(false);
@@ -36,7 +37,7 @@ export function useCollaboration({
   const [remoteUsers, setRemoteUsers] = useState([]);
   const [permissions, setPermissions] = useState({}); // { identifier: 'edit'|'view' }
   const [myPermission, setMyPermission] = useState('edit'); // Bu kullanıcının izni
-  const [isRoomOwner, setIsRoomOwner] = useState(false); // Oda sahibi mi?
+  const [isRoomOwner, setIsRoomOwner] = useState(isOwner); // Oda sahibi mi?
 
   // Google kullanıcısı değişince localUser güncelle
   useEffect(() => {
@@ -45,13 +46,17 @@ export function useCollaboration({
     }
   }, [googleUser]);
 
+  // isOwner prop'u değişirse yerel sahipliği de güncelle
+  useEffect(() => {
+    setIsRoomOwner(isOwner);
+  }, [isOwner]);
+
   // --- Refs ---
   const ydocRef = useRef(null);
   const providerRef = useRef(null);
   const ytextRef = useRef(null);
   const ytitleRef = useRef(null);
   const ypermissionsRef = useRef(null); // Y.Map for persistent permissions
-  const yownerRef = useRef(null);       // Y.Text for room owner identifier
   const lastHtmlRef = useRef('');
   const lastTitleRef = useRef(title);
   const activeDocIdRef = useRef(activeDocId);
@@ -102,7 +107,6 @@ export function useCollaboration({
     const ytext = ydoc.getText('content');
     const ytitle = ydoc.getText('title');
     const ypermissions = ydoc.getMap('permissions'); // Kalıcı izin haritası
-    const yowner = ydoc.getText('owner');             // Oda sahibi identifier'ı
 
     const provider = new WebsocketProvider(COLLAB_SERVER_URL, `hokka-${rid}`, ydoc);
 
@@ -113,27 +117,22 @@ export function useCollaboration({
       const currentUser = localUserRef.current;
       const myId = getUserIdentifier(googleUser || currentUser);
 
-      // --- Oda sahibini belirle ---
-      const existingOwner = yowner.toString();
-      let amOwner = false;
-
-      if (existingOwner === '') {
-        // Odayı ilk oluşturan — sahip ol
-        yowner.insert(0, myId || 'unknown');
-        amOwner = true;
-      } else {
-        amOwner = (existingOwner === myId);
+      // --- Oda sahibi ise kendini Yjs izin haritasına 'owner' veya 'edit' olarak kaydet ---
+      if (isOwner) {
+        ypermissions.set('__owner', myId || 'unknown');
+        ypermissions.set(myId, 'edit');
       }
-      setIsRoomOwner(amOwner);
 
-      // --- Kendi iznimi belirle ---
-      const myPerm = ypermissions.get(myId) || (amOwner ? 'edit' : 'edit');
-      setMyPermission(myPerm);
-
-      // --- İzin listesini yükle ---
+      // --- İzinleri al ---
       const permObj = {};
       ypermissions.forEach((val, key) => { permObj[key] = val; });
       setPermissions(permObj);
+
+      // --- Kendi iznimi belirle ---
+      // Sahip ise her zaman 'edit'.
+      // Misafir ise: İzin listesinde özellikle varsa onu al, yoksa varsayılan olarak 'view' (görüntüleme) yap!
+      const myPerm = isOwner ? 'edit' : (ypermissions.get(myId) || 'view');
+      setMyPermission(myPerm);
 
       // --- Awareness: kullanıcı bilgisi + izni yayınla ---
       provider.awareness.setLocalStateField('user', {
@@ -181,17 +180,21 @@ export function useCollaboration({
       // Kendi iznimde değişiklik var mı?
       const currentUser = localUserRef.current;
       const myId = getUserIdentifier(googleUser || currentUser);
-      if (myId && ypermissions.has(myId)) {
-        const newPerm = ypermissions.get(myId);
-        setMyPermission(newPerm);
-        // Awareness'ı güncelle
-        if (providerRef.current) {
-          const currentState = providerRef.current.awareness.getLocalState()?.user || {};
-          providerRef.current.awareness.setLocalStateField('user', {
-            ...currentState,
-            permission: newPerm,
-          });
-        }
+      
+      const ownerId = ypermissions.get('__owner');
+      const amOwner = isOwner || (ownerId && ownerId === myId);
+      setIsRoomOwner(amOwner);
+
+      const newPerm = amOwner ? 'edit' : (ypermissions.get(myId) || 'view');
+      setMyPermission(newPerm);
+
+      // Awareness'ı güncelle
+      if (providerRef.current) {
+        const currentState = providerRef.current.awareness.getLocalState()?.user || {};
+        providerRef.current.awareness.setLocalStateField('user', {
+          ...currentState,
+          permission: newPerm,
+        });
       }
     });
 
@@ -245,7 +248,6 @@ export function useCollaboration({
     ytextRef.current = ytext;
     ytitleRef.current = ytitle;
     ypermissionsRef.current = ypermissions;
-    yownerRef.current = yowner;
     setRoomId(rid);
 
     // URL güncelle
