@@ -331,6 +331,7 @@ export function useCollaboration({
   return {
     isConnected,
     roomId,
+    docTitle: title,
     localUser,
     remoteUsers,
     permissions,      // { identifier: 'edit'|'view' }

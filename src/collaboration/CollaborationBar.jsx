@@ -63,6 +63,17 @@ export default function CollaborationBar({ collaboration, theme }) {
     setTimeout(() => setLinkCopied(false), 2000);
   };
 
+  const handleSendEmailInvite = (targetEmail) => {
+    const docUrl = `${window.location.origin}/?docId=${activeDocId}`;
+    const subject = encodeURIComponent(`[Hokka] ${collaboration.docTitle || 'Belge'} sizinle paylaşıldı`);
+    const body = encodeURIComponent(
+      `Merhaba,\n\n${localUser.name} sizinle Hokka üzerinde "${collaboration.docTitle || 'Belge'}" başlıklı bir belge paylaştı.\n\nBelgeye erişmek ve birlikte çalışmak için aşağıdaki bağlantıya tıklayın:\n${docUrl}\n\nKeyifli çalışmalar!`
+    );
+    // Gmail web composer
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(targetEmail)}&su=${subject}&body=${body}`;
+    window.open(gmailUrl, '_blank');
+  };
+
   const permEntries = Object.entries(permissions);
   const allUsers = [localUser, ...remoteUsers];
 
@@ -189,6 +200,15 @@ export default function CollaborationBar({ collaboration, theme }) {
                       </span>
                       <span className="perm-list-id" title={id}>{id}</span>
                       <span className="perm-list-mode-text">{mode === 'edit' ? 'Düzenleyebilir' : 'Görüntüleyebilir'}</span>
+                      {id.includes('@') && (
+                        <button
+                          className="perm-email-btn"
+                          onClick={() => handleSendEmailInvite(id)}
+                          title="Gmail ile Davet E-postası Gönder"
+                        >
+                          ✉️ Davet Et
+                        </button>
+                      )}
                       <button
                         className="perm-remove-btn"
                         onClick={() => removePermission(id)}
