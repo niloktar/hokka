@@ -1095,7 +1095,7 @@ function AppInner({ user, signOutUser }) {
         editor.innerHTML = activeDoc.content || '';
       }
     }
-  }, [activeId, activeDoc.content]);
+  }, [activeId]);
 
   const updateFormattingState = useCallback(() => {
     setIsBold(document.queryCommandState('bold'));
@@ -1137,9 +1137,10 @@ function AppInner({ user, signOutUser }) {
     }));
     setTimeout(() => { isUpdatingRef.current = false; }, 0);
     updateFormattingState();
-    // Collaboration: yerel değişikliği Yjs'e gönder
+    // Collaboration: yerel değişikliği Yjs'e gönder ve imleç konumunu anlık yayınla
     collaboration.pushLocalChange(html);
-  }, [activeId, updateFormattingState, collaboration.pushLocalChange]);
+    collaboration.updateCursorPosition();
+  }, [activeId, updateFormattingState, collaboration.pushLocalChange, collaboration.updateCursorPosition]);
 
   // Otomatik başlık oluşturma
   const DEFAULT_TITLE_PATTERNS = ['Untitled Document 📝', 'Untitled Document', ''];

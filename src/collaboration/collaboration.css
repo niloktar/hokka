@@ -155,10 +155,10 @@
 
 .collab-cursor {
   position: absolute;
-  width: 2px;
+  width: 2.5px;
   pointer-events: none;
-  z-index: 50;
-  transition: top 0.12s ease-out, left 0.12s ease-out;
+  z-index: 99;
+  transition: top 0.06s ease-out, left 0.06s ease-out;
 }
 
 /* View-only cursor — dashed style */
