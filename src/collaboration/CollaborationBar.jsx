@@ -200,15 +200,13 @@ export default function CollaborationBar({ collaboration, theme }) {
                       </span>
                       <span className="perm-list-id" title={id}>{id}</span>
                       <span className="perm-list-mode-text">{mode === 'edit' ? 'Düzenleyebilir' : 'Görüntüleyebilir'}</span>
-                      {id.includes('@') && (
-                        <button
-                          className="perm-email-btn"
-                          onClick={() => handleSendEmailInvite(id)}
-                          title="Gmail ile Davet E-postası Gönder"
-                        >
-                          ✉️ Davet Et
-                        </button>
-                      )}
+                      <button
+                        className="perm-email-btn"
+                        onClick={() => handleSendEmailInvite(id)}
+                        title="Gmail ile Davet E-postası Gönder"
+                      >
+                        ✉️ Davet Et
+                      </button>
                       <button
                         className="perm-remove-btn"
                         onClick={() => removePermission(id)}
