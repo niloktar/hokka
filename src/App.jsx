@@ -1121,7 +1121,12 @@ function AppInner({ user, signOutUser }) {
       const colorVal = document.queryCommandValue('foreColor');
       setSelectedTextColor(rgbToHex(colorVal));
     } catch (e) {}
-  }, []);
+    
+    // Yjs collaboration: sync cursor position when formatting/selection updates
+    if (collaboration && collaboration.updateCursorPosition) {
+      collaboration.updateCursorPosition();
+    }
+  }, [collaboration.updateCursorPosition]);
 
   const handleEditorInput = useCallback(() => {
     if (!editorRef.current) return;
