@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Peer from 'peerjs';
+import { rtdb, firebaseConfigured } from '../firebase';
+import {
+  ref,
+  onValue,
+  set,
+  update,
+  remove,
+  onDisconnect,
+} from 'firebase/database';
 import {
   generateUserName,
   getAnimalForUser,
@@ -47,7 +55,15 @@ function buildLocalUser(googleUser) {
 }
 
 /**
- * useCollaboration — WebRTC P2P Direct Real-time Collaboration Engine
+ * sanitizeKey — Firebase Database anahtarındaki geçersiz karakterleri temizler
+ */
+function sanitizeKey(str) {
+  if (!str) return 'user_anon';
+  return str.replace(/[.#$/\[\]]/g, '_').toLowerCase().trim();
+}
+
+/**
+ * useCollaboration — Firebase Realtime Cloud Engine Collab Hook
  */
 export function useCollaboration({
   editorRef,
@@ -58,7 +74,7 @@ export function useCollaboration({
   onRemoteTitleChange,
   googleUser,
 }) {
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
   const [roomId, setRoomId] = useState(activeDocId);
   const [localUser, setLocalUser] = useState(() => buildLocalUser(googleUser));
   const [remoteUsers, setRemoteUsers] = useState([]);
@@ -74,23 +90,19 @@ export function useCollaboration({
   }, [googleUser]);
 
   // Refs
-  const peerRef = useRef(null);
-  const connectionsRef = useRef([]); // Active WebRTC DataConnections
   const lastHtmlRef = useRef('');
   const lastTitleRef = useRef(title);
+  const activeDocIdRef = useRef(activeDocId);
   const localUserRef = useRef(localUser);
-  const permissionsRef = useRef(permissions);
   const myPermissionRef = useRef(myPermission);
-  const isOwnerRef = useRef(isRoomOwner);
   const cursorOffsetRef = useRef(null);
 
   useEffect(() => { localUserRef.current = localUser; }, [localUser]);
-  useEffect(() => { permissionsRef.current = permissions; }, [permissions]);
-  useEffect(() => { myPermissionRef.current = myPermission; }, [myPermission]);
-  useEffect(() => { isOwnerRef.current = isRoomOwner; }, [isRoomOwner]);
+  useEffect(() => { activeDocIdRef.current = activeDocId; }, [activeDocId]);
   useEffect(() => { lastTitleRef.current = title; }, [title]);
+  useEffect(() => { myPermissionRef.current = myPermission; }, [myPermission]);
 
-  // Persist local user
+  // Persist user info
   useEffect(() => {
     localStorage.setItem('hokka_collab_user', JSON.stringify(localUser));
   }, [localUser]);
@@ -103,59 +115,32 @@ export function useCollaboration({
     return user.uid || null;
   }, []);
 
-  // Broadcast data packet to ALL connected peers
-  const broadcast = useCallback((data) => {
-    connectionsRef.current.forEach((conn) => {
-      if (conn.open) {
-        try { conn.send(data); } catch (e) {}
-      }
-    });
-  }, []);
+  // ===============================================
+  // REAL-TIME FIREBASE DATABASE CLOUD ENGINE
+  // ===============================================
+  useEffect(() => {
+    if (!firebaseConfigured || !rtdb || !activeDocId) return;
 
-  // Update list of remote users from active connections
-  const updateRemoteUsersList = useCallback(() => {
-    const activePeers = connectionsRef.current
-      .filter(c => c.open && c.peerUser)
-      .map(c => ({
-        clientId: c.peer,
-        name: c.peerUser.name || 'Kullanıcı',
-        color: c.peerUser.color || '#8b5cf6',
-        animal: c.peerUser.animal || '🐾',
-        permission: c.peerUser.permission || 'edit',
-        cursor: typeof c.peerCursor === 'number' ? { offset: c.peerCursor } : null,
-      }));
-    setRemoteUsers(activePeers);
-  }, []);
+    setRoomId(activeDocId);
+    const sanitizedDocId = sanitizeKey(activeDocId);
+    const rawMyId = getUserIdentifier(googleUser || localUser) || ('user_' + Math.random().toString(36).substring(2, 7));
+    const myId = sanitizeKey(rawMyId);
 
-  // Handle incoming message from a peer
-  const handlePeerData = useCallback((conn, data) => {
-    if (!data || !data.type) return;
+    const docRef = ref(rtdb, `documents/${sanitizedDocId}`);
+    const presenceRef = ref(rtdb, `presence/${sanitizedDocId}`);
+    const myPresenceRef = ref(rtdb, `presence/${sanitizedDocId}/${myId}`);
 
-    switch (data.type) {
-      case 'JOIN_REQUEST':
-      case 'PRESENCE': {
-        conn.peerUser = data.user;
-        updateRemoteUsersList();
-
-        // If I am host/owner or have content, reply with my presence & current document state
-        if (data.type === 'JOIN_REQUEST') {
-          conn.send({
-            type: 'SYNC_STATE',
-            title: lastTitleRef.current || 'Untitled Document 📝',
-            content: editorRef.current?.innerHTML || lastHtmlRef.current || '',
-            permissions: permissionsRef.current,
-            ownerUser: localUserRef.current,
-          });
-        }
-        break;
-      }
-
-      case 'SYNC_STATE': {
-        // We received the document state from the host/peer!
+    // A. Real-time Document Content & Permissions Listener
+    const unsubDoc = onValue(docRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // 1. Title Sync
         if (data.title && data.title !== lastTitleRef.current) {
           lastTitleRef.current = data.title;
           onRemoteTitleChange?.(data.title);
         }
+
+        // 2. Content Sync
         if (typeof data.content === 'string' && data.content !== lastHtmlRef.current) {
           lastHtmlRef.current = data.content;
           if (editorRef.current && !isUpdatingRef.current) {
@@ -165,202 +150,143 @@ export function useCollaboration({
             setTimeout(() => { isUpdatingRef.current = false; }, 0);
           }
         }
-        if (data.permissions) {
-          setPermissions(data.permissions);
-        }
-        // Send back our presence to complete handshake
-        conn.send({
-          type: 'PRESENCE',
-          user: {
-            ...localUserRef.current,
-            permission: myPermissionRef.current,
-          },
-        });
-        break;
-      }
 
-      case 'CONTENT_CHANGE': {
-        if (typeof data.html === 'string' && data.html !== lastHtmlRef.current) {
-          lastHtmlRef.current = data.html;
-          if (editorRef.current && !isUpdatingRef.current) {
-            isUpdatingRef.current = true;
-            editorRef.current.innerHTML = data.html;
-            onRemoteChange?.(data.html);
-            setTimeout(() => { isUpdatingRef.current = false; }, 0);
+        // 3. Permissions Sync
+        const permMap = data.permissions || {};
+        setPermissions(permMap);
+
+        const ownerId = data.ownerId;
+        const amOwner = ownerId ? ownerId === myId : true;
+        setIsRoomOwner(amOwner);
+
+        const perm = amOwner ? 'edit' : (permMap[myId] || 'view');
+        setMyPermission(perm);
+      } else {
+        // First time initialization in Cloud Database
+        const initialHtml = editorRef.current?.innerHTML || '';
+        const initialTitle = lastTitleRef.current || 'Untitled Document 📝';
+        set(docRef, {
+          title: initialTitle,
+          content: initialHtml,
+          ownerId: myId,
+          permissions: { [myId]: 'edit' },
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }).catch(() => {});
+
+        setIsRoomOwner(true);
+        setMyPermission('edit');
+      }
+      setIsConnected(true);
+    });
+
+    // B. Real-time Presence Listener (Animal avatars & Live Cursors)
+    const unsubPresence = onValue(presenceRef, (snapshot) => {
+      const pData = snapshot.val() || {};
+      const now = Date.now();
+      const users = [];
+
+      Object.entries(pData).forEach(([key, userState]) => {
+        if (key !== myId && userState) {
+          if (userState.updatedAt && (now - userState.updatedAt < 20000)) {
+            users.push({
+              clientId: key,
+              name: userState.name || 'Kullanıcı',
+              color: userState.color || '#8b5cf6',
+              animal: userState.animal || '🐾',
+              permission: userState.permission || 'edit',
+              cursor: typeof userState.cursorOffset === 'number' ? { offset: userState.cursorOffset } : null,
+            });
           }
         }
-        break;
-      }
-
-      case 'TITLE_CHANGE': {
-        if (data.title && data.title !== lastTitleRef.current) {
-          lastTitleRef.current = data.title;
-          onRemoteTitleChange?.(data.title);
-        }
-        break;
-      }
-
-      case 'CURSOR_MOVE': {
-        conn.peerCursor = data.offset;
-        updateRemoteUsersList();
-        break;
-      }
-
-      case 'PERMISSIONS_UPDATE': {
-        setPermissions(data.permissions || {});
-        const myId = getUserIdentifier(googleUser || localUserRef.current);
-        const newPerm = isOwnerRef.current ? 'edit' : (data.permissions?.[myId] || 'view');
-        setMyPermission(newPerm);
-        break;
-      }
-
-      default:
-        break;
-    }
-  }, [editorRef, isUpdatingRef, onRemoteChange, onRemoteTitleChange, updateRemoteUsersList, googleUser, getUserIdentifier]);
-
-  // Setup connection handlers for a DataConnection
-  const setupConnection = useCallback((conn) => {
-    // Avoid duplicate connections
-    const existingIdx = connectionsRef.current.findIndex(c => c.peer === conn.peer);
-    if (existingIdx !== -1) {
-      connectionsRef.current[existingIdx].close();
-      connectionsRef.current.splice(existingIdx, 1);
-    }
-    connectionsRef.current.push(conn);
-
-    conn.on('open', () => {
-      setIsConnected(true);
-      // Send JOIN_REQUEST with our user profile
-      conn.send({
-        type: 'JOIN_REQUEST',
-        user: {
-          ...localUserRef.current,
-          permission: myPermissionRef.current,
-        },
       });
+      setRemoteUsers(users);
     });
 
-    conn.on('data', (data) => {
-      handlePeerData(conn, data);
-    });
+    // C. Local Presence Heartbeat & Auto Disconnect Cleanup
+    const updateLocalPresence = () => {
+      const u = localUserRef.current;
+      set(myPresenceRef, {
+        name: u.name,
+        color: u.color,
+        animal: u.animal || '🐾',
+        photoURL: u.photoURL || null,
+        permission: myPermissionRef.current,
+        cursorOffset: cursorOffsetRef.current,
+        updatedAt: Date.now(),
+      }).catch(() => {});
+    };
 
-    conn.on('close', () => {
-      connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
-      updateRemoteUsersList();
-      if (connectionsRef.current.length === 0) {
-        setIsConnected(false);
-      }
-    });
+    updateLocalPresence();
+    const heartbeatTimer = setInterval(updateLocalPresence, 4000);
 
-    conn.on('error', () => {
-      connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
-      updateRemoteUsersList();
-    });
-  }, [handlePeerData, updateRemoteUsersList]);
-
-  // Initialize WebRTC Peer Node for activeDocId
-  useEffect(() => {
-    if (!activeDocId) return;
-
-    setRoomId(activeDocId);
-    const sanitizedDocId = activeDocId.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const myId = getUserIdentifier(googleUser || localUser) || 'user_' + Math.random().toString(36).substring(2, 7);
-    const sanitizedMyId = myId.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-    // Deterministic Peer ID for Host vs Peer
-    const peerId = `hokka_${sanitizedDocId}_${sanitizedMyId}`;
-    const hostPeerId = `hokka_${sanitizedDocId}_host`;
-
-    const peer = new Peer(peerId, {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-        ],
-      },
-    });
-
-    peerRef.current = peer;
-
-    peer.on('open', () => {
-      setIsConnected(true);
-
-      // If I am NOT the host, connect to the Host peer!
-      if (peerId !== hostPeerId) {
-        const conn = peer.connect(hostPeerId, { reliable: true });
-        setupConnection(conn);
-      } else {
-        setIsRoomOwner(true);
-      }
-    });
-
-    // Listen for incoming peer connections
-    peer.on('connection', (conn) => {
-      setupConnection(conn);
-    });
-
-    peer.on('error', (err) => {
-      // If host ID was taken, fallback gracefully
-      if (err.type === 'unavailable-id') {
-        // We are a guest connecting to the existing host!
-      }
-      console.warn('WebRTC Peer warning:', err.type);
-    });
+    // Auto cleanup presence on tab close or disconnect
+    onDisconnect(myPresenceRef).remove();
 
     return () => {
-      connectionsRef.current.forEach(c => c.close());
-      connectionsRef.current = [];
-      peer.destroy();
-      peerRef.current = null;
-      setIsConnected(false);
-      setRemoteUsers([]);
+      unsubDoc();
+      unsubPresence();
+      clearInterval(heartbeatTimer);
+      remove(myPresenceRef).catch(() => {});
     };
-  }, [activeDocId, googleUser, localUser, setupConnection, getUserIdentifier]);
+  }, [activeDocId, googleUser, localUser, editorRef, isUpdatingRef, onRemoteChange, onRemoteTitleChange, getUserIdentifier]);
 
   // --- Actions ---
 
   const addPermission = useCallback((identifier, mode) => {
-    const key = identifier.toLowerCase().trim();
-    if (!key) return;
-    setPermissions(prev => {
-      const updated = { ...prev, [key]: mode };
-      broadcast({ type: 'PERMISSIONS_UPDATE', permissions: updated });
-      return updated;
-    });
-  }, [broadcast]);
+    const key = sanitizeKey(identifier);
+    if (!key || !activeDocId || !rtdb) return;
+    const sanitizedDocId = sanitizeKey(activeDocId);
+    const permRef = ref(rtdb, `documents/${sanitizedDocId}/permissions/${key}`);
+    set(permRef, mode).catch(() => {});
+  }, [activeDocId]);
 
   const removePermission = useCallback((identifier) => {
-    const key = identifier.toLowerCase().trim();
-    if (!key) return;
-    setPermissions(prev => {
-      const updated = { ...prev };
-      delete updated[key];
-      broadcast({ type: 'PERMISSIONS_UPDATE', permissions: updated });
-      return updated;
-    });
-  }, [broadcast]);
+    const key = sanitizeKey(identifier);
+    if (!key || !activeDocId || !rtdb) return;
+    const sanitizedDocId = sanitizeKey(activeDocId);
+    const permRef = ref(rtdb, `documents/${sanitizedDocId}/permissions/${key}`);
+    remove(permRef).catch(() => {});
+  }, [activeDocId]);
 
   const pushLocalChange = useCallback((newHtml) => {
     lastHtmlRef.current = newHtml;
-    broadcast({ type: 'CONTENT_CHANGE', html: newHtml });
-  }, [broadcast]);
+    if (!activeDocId || !rtdb) return;
+    const sanitizedDocId = sanitizeKey(activeDocId);
+    const contentRef = ref(rtdb, `documents/${sanitizedDocId}`);
+    update(contentRef, {
+      content: newHtml,
+      updatedAt: Date.now(),
+    }).catch(() => {});
+  }, [activeDocId]);
 
   const pushTitleChange = useCallback((newTitle) => {
     lastTitleRef.current = newTitle;
-    broadcast({ type: 'TITLE_CHANGE', title: newTitle });
-  }, [broadcast]);
+    if (!activeDocId || !rtdb) return;
+    const sanitizedDocId = sanitizeKey(activeDocId);
+    const titleRef = ref(rtdb, `documents/${sanitizedDocId}`);
+    update(titleRef, {
+      title: newTitle,
+      updatedAt: Date.now(),
+    }).catch(() => {});
+  }, [activeDocId]);
 
   const updateCursorPosition = useCallback(() => {
-    if (!editorRef.current) return;
+    if (!editorRef.current || !activeDocId || !rtdb) return;
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
       const offset = getTextOffset(editorRef.current, sel.anchorNode, sel.anchorOffset);
       cursorOffsetRef.current = offset;
-      broadcast({ type: 'CURSOR_MOVE', offset });
+      const sanitizedDocId = sanitizeKey(activeDocId);
+      const rawMyId = getUserIdentifier(googleUser || localUser) || 'user_anon';
+      const myId = sanitizeKey(rawMyId);
+      const myPresenceRef = ref(rtdb, `presence/${sanitizedDocId}/${myId}`);
+      update(myPresenceRef, {
+        cursorOffset: offset,
+        updatedAt: Date.now(),
+      }).catch(() => {});
     }
-  }, [editorRef, broadcast]);
+  }, [editorRef, activeDocId, googleUser, localUser, getUserIdentifier]);
 
   const leaveRoom = useCallback(() => {}, []);
   const joinRoom = useCallback(() => {}, []);
