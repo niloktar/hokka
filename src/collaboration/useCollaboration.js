@@ -1,6 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
+import { db, firebaseConfigured } from '../firebase';
+import {
+  doc,
+  collection,
+  onSnapshot,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  deleteField,
+  serverTimestamp,
+} from 'firebase/firestore';
 import {
   COLLAB_SERVER_URL,
   generateUserName,
@@ -14,11 +25,45 @@ import {
 } from './constants';
 
 /**
- * useCollaboration — Ana ortak çalışma hook'u
- *
- * İzin sistemi: Yjs Y.Map üzerinden kalıcı kişi bazlı izinler.
- * Oda sahibi (ilk oluşturan) kişinin email/adını girip edit|view seçer.
- * Kişi odaya katıldığında izni otomatik uygulanır.
+ * buildLocalUser — Kullanıcı bilgilerini hazırlar
+ */
+function buildLocalUser(googleUser) {
+  const saved = localStorage.getItem('hokka_collab_user');
+  let parsed = null;
+  if (saved) {
+    try { parsed = JSON.parse(saved); } catch (e) {}
+  }
+
+  if (googleUser) {
+    const uid = googleUser.uid;
+    const name = googleUser.displayName || googleUser.email?.split('@')[0] || 'Kullanıcı';
+    return {
+      uid,
+      name,
+      email: googleUser.email || '',
+      color: parsed?.color || getColorForUser(uid),
+      animal: parsed?.animal || getAnimalForUser(uid),
+      photoURL: googleUser.photoURL || null,
+    };
+  }
+
+  if (parsed && parsed.name && !parsed.uid) {
+    return parsed;
+  }
+
+  const name = generateUserName();
+  return {
+    uid: null,
+    name,
+    email: '',
+    color: getColorForUser(name),
+    animal: getAnimalForUser(name),
+    photoURL: null,
+  };
+}
+
+/**
+ * useCollaboration — Ana ortak çalışma hook'u (Firestore + Yjs Dual Provider)
  */
 export function useCollaboration({
   editorRef,
@@ -30,13 +75,13 @@ export function useCollaboration({
   googleUser,
 }) {
   // --- State ---
-  const [isConnected, setIsConnected] = useState(false);
-  const [roomId, setRoomId] = useState(null);
+  const [isConnected, setIsConnected] = useState(true);
+  const [roomId, setRoomId] = useState(activeDocId);
   const [localUser, setLocalUser] = useState(() => buildLocalUser(googleUser));
   const [remoteUsers, setRemoteUsers] = useState([]);
-  const [permissions, setPermissions] = useState({}); // { identifier: 'edit'|'view' }
-  const [myPermission, setMyPermission] = useState('edit'); // Bu kullanıcının izni
-  const [isRoomOwner, setIsRoomOwner] = useState(false); // Oda sahibi mi?
+  const [permissions, setPermissions] = useState({});
+  const [myPermission, setMyPermission] = useState('edit');
+  const [isRoomOwner, setIsRoomOwner] = useState(true);
 
   // Google kullanıcısı değişince localUser güncelle
   useEffect(() => {
@@ -46,20 +91,17 @@ export function useCollaboration({
   }, [googleUser]);
 
   // --- Refs ---
-  const ydocRef = useRef(null);
-  const providerRef = useRef(null);
-  const ytextRef = useRef(null);
-  const ytitleRef = useRef(null);
-  const ypermissionsRef = useRef(null); // Y.Map for persistent permissions
-  const yownerRef = useRef(null);       // Y.Text for room owner identifier
   const lastHtmlRef = useRef('');
   const lastTitleRef = useRef(title);
   const activeDocIdRef = useRef(activeDocId);
   const localUserRef = useRef(localUser);
+  const myPermissionRef = useRef(myPermission);
+  const cursorOffsetRef = useRef(null);
 
   useEffect(() => { localUserRef.current = localUser; }, [localUser]);
   useEffect(() => { activeDocIdRef.current = activeDocId; }, [activeDocId]);
   useEffect(() => { lastTitleRef.current = title; }, [title]);
+  useEffect(() => { myPermissionRef.current = myPermission; }, [myPermission]);
 
   // Persist user info
   useEffect(() => {
@@ -69,294 +111,210 @@ export function useCollaboration({
   // --- Kullanıcı tanımlayıcısı: email varsa email, yoksa ad ---
   const getUserIdentifier = useCallback((user) => {
     if (!user) return null;
-    // Firebase kullanıcısı → email
     if (user.email) return user.email.toLowerCase();
-    // Anonim → displayName veya name (lowercase, trimmed)
     if (user.displayName) return user.displayName.toLowerCase().trim();
     if (user.name) return user.name.toLowerCase().trim();
     return user.uid || null;
   }, []);
 
-  // --- İzin yönetimi fonksiyonları ---
+  // ==========================================
+  // 1. FIRESTORE REAL-TIME PROVIDER (PRIMARY)
+  // ==========================================
+  useEffect(() => {
+    if (!firebaseConfigured || !db || !activeDocId) return;
 
-  /** Belirli bir kişiye izin ver (sadece oda sahibi çağırabilir) */
-  const addPermission = useCallback((identifier, mode) => {
-    if (!ypermissionsRef.current) return;
-    const key = identifier.toLowerCase().trim();
-    if (!key) return;
-    ypermissionsRef.current.set(key, mode); // Yjs map → tüm kullanıcılara senkronize olur
-  }, []);
+    setRoomId(activeDocId);
+    const myId = getUserIdentifier(googleUser || localUser) || 'user_' + Math.random().toString(36).substring(2, 7);
+    const docRef = doc(db, 'hokka_documents', activeDocId);
+    const presenceCollRef = collection(db, 'hokka_documents', activeDocId, 'presence');
 
-  /** Kişinin iznini kaldır */
-  const removePermission = useCallback((identifier) => {
-    if (!ypermissionsRef.current) return;
-    ypermissionsRef.current.delete(identifier.toLowerCase().trim());
-  }, []);
+    // A. Document Content & Permissions Snapshot Listener
+    const unsubDoc = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
 
-  // --- Join Room ---
-  const joinRoom = useCallback((roomName) => {
-    if (providerRef.current) providerRef.current.destroy();
-    if (ydocRef.current) ydocRef.current.destroy();
-
-    const rid = roomName || generateRoomId();
-    const ydoc = new Y.Doc();
-    const ytext = ydoc.getText('content');
-    const ytitle = ydoc.getText('title');
-    const ypermissions = ydoc.getMap('permissions'); // Kalıcı izin haritası
-    const yowner = ydoc.getText('owner');             // Oda sahibi identifier'ı
-
-    const provider = new WebsocketProvider(COLLAB_SERVER_URL, `hokka-${rid}`, ydoc);
-
-    // --- Sync: ilk senkronizasyon ---
-    provider.on('sync', (isSynced) => {
-      if (!isSynced) return;
-
-      const currentUser = localUserRef.current;
-      const myId = getUserIdentifier(googleUser || currentUser);
-
-      // --- Oda sahibini belirle ---
-      const ownerId = ypermissions.get('__owner');
-      const amOwner = isOwner || (ownerId ? ownerId === myId : true);
-      if (amOwner && myId) {
-        ypermissions.set('__owner', myId);
-        ypermissions.set(myId, 'edit');
-      }
-      setIsRoomOwner(amOwner);
-
-      // --- İzinleri al ---
-      const permObj = {};
-      ypermissions.forEach((val, key) => { permObj[key] = val; });
-      setPermissions(permObj);
-
-      // --- Kendi iznimi belirle ---
-      const myPerm = amOwner ? 'edit' : (ypermissions.get(myId) || 'view');
-      setMyPermission(myPerm);
-
-      // --- Awareness: kullanıcı bilgisi + izni yayınla ---
-      provider.awareness.setLocalStateField('user', {
-        uid: currentUser.uid || null,
-        name: currentUser.name,
-        color: currentUser.color,
-        animal: currentUser.animal || '🐾',
-        photoURL: currentUser.photoURL || null,
-        permission: myPerm,
-        identifier: myId,
-      });
-
-      // --- İçerik senkronizasyonu ---
-      const currentHtml = editorRef.current?.innerHTML || '';
-      const currentTitle = lastTitleRef.current || 'Untitled Document 📝';
-      const ytextContent = ytext.toString();
-      const ytitleContent = ytitle.toString();
-
-      if (ytextContent === '' && currentHtml !== '') {
-        ytext.insert(0, currentHtml);
-        lastHtmlRef.current = currentHtml;
-      } else if (ytextContent !== '') {
-        if (editorRef.current) {
-          isUpdatingRef.current = true;
-          editorRef.current.innerHTML = ytextContent;
-          lastHtmlRef.current = ytextContent;
-          onRemoteChange?.(ytextContent);
-          setTimeout(() => { isUpdatingRef.current = false; }, 0);
+        // 1. Title Sync
+        if (data.title && data.title !== lastTitleRef.current) {
+          lastTitleRef.current = data.title;
+          onRemoteTitleChange?.(data.title);
         }
-      }
 
-      if (ytitleContent === '') {
-        ytitle.insert(0, currentTitle);
-      } else if (ytitleContent !== currentTitle) {
-        onRemoteTitleChange?.(ytitleContent);
-      }
-    });
-
-    // --- İzin haritası değişince güncelle ve kendi iznimi kontrol et ---
-    ypermissions.observe(() => {
-      const permObj = {};
-      ypermissions.forEach((val, key) => { permObj[key] = val; });
-      setPermissions(permObj);
-
-      // Kendi iznimde değişiklik var mı?
-      const currentUser = localUserRef.current;
-      const myId = getUserIdentifier(googleUser || currentUser);
-      if (myId && ypermissions.has(myId)) {
-        const newPerm = ypermissions.get(myId);
-        setMyPermission(newPerm);
-        // Awareness'ı güncelle
-        if (providerRef.current) {
-          const currentState = providerRef.current.awareness.getLocalState()?.user || {};
-          providerRef.current.awareness.setLocalStateField('user', {
-            ...currentState,
-            permission: newPerm,
-          });
+        // 2. Content Sync
+        if (typeof data.content === 'string' && data.content !== lastHtmlRef.current) {
+          lastHtmlRef.current = data.content;
+          if (editorRef.current && !isUpdatingRef.current) {
+            isUpdatingRef.current = true;
+            editorRef.current.innerHTML = data.content;
+            onRemoteChange?.(data.content);
+            setTimeout(() => { isUpdatingRef.current = false; }, 0);
+          }
         }
+
+        // 3. Permissions Sync
+        const permMap = data.permissions || {};
+        setPermissions(permMap);
+
+        const ownerId = data.ownerId;
+        const amOwner = ownerId ? ownerId === myId : true;
+        setIsRoomOwner(amOwner);
+
+        const perm = amOwner ? 'edit' : (permMap[myId] || 'view');
+        setMyPermission(perm);
+      } else {
+        // Document does not exist in Firestore → Create initial cloud entry
+        const initialHtml = editorRef.current?.innerHTML || '';
+        const initialTitle = lastTitleRef.current || 'Untitled Document 📝';
+        setDoc(docRef, {
+          title: initialTitle,
+          content: initialHtml,
+          ownerId: myId,
+          permissions: { [myId]: 'edit' },
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }).catch(err => console.warn('Firestore doc create error:', err));
+
+        setIsRoomOwner(true);
+        setMyPermission('edit');
       }
+      setIsConnected(true);
+    }, (err) => {
+      console.warn('Firestore doc snapshot error:', err);
     });
 
-    // --- Bağlantı durumu ---
-    provider.on('status', ({ status }) => {
-      setIsConnected(status === 'connected');
-    });
-
-    // --- Uzak içerik değişiklikleri ---
-    ytext.observe((event) => {
-      if (event.transaction.local) return;
-      const newHtml = ytext.toString();
-      if (newHtml === lastHtmlRef.current || !editorRef.current) return;
-
-      const sel = window.getSelection();
-      let savedOffset = null;
-      if (sel?.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
-        savedOffset = getTextOffset(editorRef.current, sel.anchorNode, sel.anchorOffset);
-      }
-
-      isUpdatingRef.current = true;
-      editorRef.current.innerHTML = newHtml;
-      lastHtmlRef.current = newHtml;
-      onRemoteChange?.(newHtml);
-      if (savedOffset !== null) restoreCursorFromOffset(editorRef.current, savedOffset);
-      setTimeout(() => { isUpdatingRef.current = false; }, 0);
-    });
-
-    // --- Uzak başlık değişiklikleri ---
-    ytitle.observe((event) => {
-      if (event.transaction.local) return;
-      onRemoteTitleChange?.(ytitle.toString());
-    });
-
-    // --- Awareness: uzak kullanıcılar ---
-    const onAwarenessChange = () => {
-      const states = provider.awareness.getStates();
+    // B. Presence Snapshot Listener (Animal avatars & Remote cursors)
+    const unsubPresence = onSnapshot(presenceCollRef, (presenceSnap) => {
+      const now = Date.now();
       const users = [];
-      states.forEach((state, clientId) => {
-        if (clientId !== ydoc.clientID && state.user) {
-          users.push({ clientId, ...state.user, cursor: state.cursor || null });
+      presenceSnap.forEach((pSnap) => {
+        if (pSnap.id !== myId) {
+          const pData = pSnap.data();
+          // Keep users active within last 20 seconds
+          if (pData.updatedAt && (now - pData.updatedAt < 20000)) {
+            users.push({
+              clientId: pSnap.id,
+              name: pData.name || 'Kullanıcı',
+              color: pData.color || '#8b5cf6',
+              animal: pData.animal || '🐾',
+              permission: pData.permission || 'edit',
+              cursor: typeof pData.cursorOffset === 'number' ? { offset: pData.cursorOffset } : null,
+            });
+          }
         }
       });
       setRemoteUsers(users);
+    }, (err) => {
+      console.warn('Firestore presence snapshot error:', err);
+    });
+
+    // C. Local Presence Heartbeat
+    const updateLocalPresence = () => {
+      const u = localUserRef.current;
+      const pDocRef = doc(db, 'hokka_documents', activeDocId, 'presence', myId);
+      setDoc(pDocRef, {
+        name: u.name,
+        color: u.color,
+        animal: u.animal || '🐾',
+        photoURL: u.photoURL || null,
+        permission: myPermissionRef.current,
+        cursorOffset: cursorOffsetRef.current,
+        updatedAt: Date.now(),
+      }, { merge: true }).catch(() => {});
     };
-    provider.awareness.on('change', onAwarenessChange);
 
-    // --- Refs güncelle ---
-    ydocRef.current = ydoc;
-    providerRef.current = provider;
-    ytextRef.current = ytext;
-    ytitleRef.current = ytitle;
-    ypermissionsRef.current = ypermissions;
-    yownerRef.current = yowner;
-    setRoomId(rid);
+    updateLocalPresence();
+    const heartbeatTimer = setInterval(updateLocalPresence, 4000);
 
-    // URL güncelle
-    const url = new URL(window.location.href);
-    url.searchParams.set('docId', rid);
-    url.searchParams.delete('room');
-    url.searchParams.delete('mode');
-    window.history.replaceState({}, '', url.toString());
-
-  }, [localUser, googleUser, editorRef, isUpdatingRef, onRemoteChange, onRemoteTitleChange, getUserIdentifier]);
-
-  // --- Leave Room ---
-  const leaveRoom = useCallback(() => {
-    providerRef.current?.destroy();
-    ydocRef.current?.destroy();
-    providerRef.current = null;
-    ydocRef.current = null;
-    ytextRef.current = null;
-    ytitleRef.current = null;
-    ypermissionsRef.current = null;
-    yownerRef.current = null;
-    lastHtmlRef.current = '';
-    setRoomId(null);
-    setIsConnected(false);
-    setRemoteUsers([]);
-    setPermissions({});
-    setMyPermission('edit');
-    setIsRoomOwner(false);
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete('docId');
-    url.searchParams.delete('room');
-    window.history.replaceState({}, '', url.toString());
-  }, []);
-
-  // --- Push Local Content Change ---
-  const pushLocalChange = useCallback((newHtml) => {
-    if (!ytextRef.current) return;
-    const oldHtml = lastHtmlRef.current;
-    if (newHtml === oldHtml) return;
-    applyDiff(ytextRef.current, oldHtml, newHtml);
-    lastHtmlRef.current = newHtml;
-  }, []);
-
-  // --- Push Local Title Change ---
-  const pushLocalTitleChange = useCallback((newTitle) => {
-    if (!ytitleRef.current) return;
-    const oldTitle = ytitleRef.current.toString();
-    if (newTitle === oldTitle) return;
-    applyDiff(ytitleRef.current, oldTitle, newTitle);
-  }, []);
-
-  // --- Update Cursor Position ---
-  const updateCursorPosition = useCallback(() => {
-    if (!providerRef.current || !editorRef.current) return;
-    const sel = window.getSelection();
-    if (sel?.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
-      const offset = getTextOffset(editorRef.current, sel.anchorNode, sel.anchorOffset);
-      providerRef.current.awareness.setLocalStateField('cursor', { offset });
-    }
-  }, [editorRef]);
-
-  // --- Auto-join when activeDocId changes ---
-  useEffect(() => {
-    if (activeDocId) {
-      const timer = setTimeout(() => {
-        joinRoom(activeDocId);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [activeDocId, joinRoom]);
-
-  // --- Cleanup on unmount ---
-  useEffect(() => {
+    // Cleanup on unmount or activeDocId change
     return () => {
-      providerRef.current?.destroy();
-      ydocRef.current?.destroy();
+      unsubDoc();
+      unsubPresence();
+      clearInterval(heartbeatTimer);
+      // Remove presence entry on leave
+      const pDocRef = doc(db, 'hokka_documents', activeDocId, 'presence', myId);
+      deleteDoc(pDocRef).catch(() => {});
     };
-  }, []);
+  }, [activeDocId, googleUser, localUser, editorRef, isUpdatingRef, onRemoteChange, onRemoteTitleChange, getUserIdentifier]);
+
+  // --- Actions ---
+
+  /** Belirli bir kişiye izin ver (Firestore) */
+  const addPermission = useCallback((identifier, mode) => {
+    const key = identifier.toLowerCase().trim();
+    if (!key || !activeDocId || !db) return;
+    const docRef = doc(db, 'hokka_documents', activeDocId);
+    updateDoc(docRef, {
+      [`permissions.${key}`]: mode,
+      updatedAt: Date.now(),
+    }).catch(err => console.warn('addPermission error:', err));
+  }, [activeDocId]);
+
+  /** Kişinin iznini kaldır (Firestore) */
+  const removePermission = useCallback((identifier) => {
+    const key = identifier.toLowerCase().trim();
+    if (!key || !activeDocId || !db) return;
+    const docRef = doc(db, 'hokka_documents', activeDocId);
+    updateDoc(docRef, {
+      [`permissions.${key}`]: deleteField(),
+      updatedAt: Date.now(),
+    }).catch(err => console.warn('removePermission error:', err));
+  }, [activeDocId]);
+
+  /** Yerel metin değişikliğini Firestore'a gönder */
+  const pushLocalChange = useCallback((newHtml) => {
+    lastHtmlRef.current = newHtml;
+    if (!activeDocId || !db) return;
+    const docRef = doc(db, 'hokka_documents', activeDocId);
+    updateDoc(docRef, {
+      content: newHtml,
+      updatedAt: Date.now(),
+    }).catch(err => console.warn('pushLocalChange error:', err));
+  }, [activeDocId]);
+
+  /** Yerel başlık değişikliğini Firestore'a gönder */
+  const pushTitleChange = useCallback((newTitle) => {
+    lastTitleRef.current = newTitle;
+    if (!activeDocId || !db) return;
+    const docRef = doc(db, 'hokka_documents', activeDocId);
+    updateDoc(docRef, {
+      title: newTitle,
+      updatedAt: Date.now(),
+    }).catch(err => console.warn('pushTitleChange error:', err));
+  }, [activeDocId]);
+
+  /** İmleç konumunu Firestore presence'e anlık yayınla */
+  const updateCursorPosition = useCallback(() => {
+    if (!editorRef.current || !activeDocId || !db) return;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
+      const offset = getTextOffset(editorRef.current, sel.anchorNode, sel.anchorOffset);
+      cursorOffsetRef.current = offset;
+      const myId = getUserIdentifier(googleUser || localUser) || 'user_anon';
+      const pDocRef = doc(db, 'hokka_documents', activeDocId, 'presence', myId);
+      updateDoc(pDocRef, {
+        cursorOffset: offset,
+        updatedAt: Date.now(),
+      }).catch(() => {});
+    }
+  }, [editorRef, activeDocId, googleUser, localUser, getUserIdentifier]);
+
+  const leaveRoom = useCallback(() => {}, []);
+  const joinRoom = useCallback(() => {}, []);
 
   return {
     isConnected,
     roomId,
     localUser,
     remoteUsers,
-    permissions,      // { identifier: 'edit'|'view' }
-    myPermission,     // Bu kullanıcının izni: 'edit' | 'view'
-    isRoomOwner,      // Oda sahibi mi?
+    permissions,
+    myPermission,
+    isRoomOwner,
     joinRoom,
     leaveRoom,
     pushLocalChange,
-    pushLocalTitleChange,
+    pushTitleChange,
     updateCursorPosition,
-    addPermission,    // (identifier, mode) => void
-    removePermission, // (identifier) => void
-    getUserIdentifier,
+    addPermission,
+    removePermission,
+    setLocalUser,
   };
-}
-
-// --- Yardımcı ---
-function buildLocalUser(googleUser) {
-  if (googleUser) {
-    return {
-      uid: googleUser.uid,
-      name: googleUser.displayName || generateUserName(),
-      email: googleUser.email || null,
-      color: getColorForUser(googleUser.uid),
-      animal: getAnimalForUser(googleUser.uid),
-      photoURL: googleUser.photoURL || null,
-    };
-  }
-  const saved = localStorage.getItem('hokka_collab_user');
-  if (saved) {
-    try { return JSON.parse(saved); } catch { /* ignore */ }
-  }
-  return { name: generateUserName(), color: getRandomColor(), animal: '🐾', photoURL: null };
 }

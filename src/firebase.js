@@ -1,14 +1,15 @@
-// Firebase App & Auth Configuration
-// Config değerleri placeholder ise Firebase başlatılmaz → uygulama anonim modda çalışır.
+// Firebase App, Auth & Firestore Configuration
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY || '';
 const isConfigured = apiKey && !apiKey.startsWith('your-') && apiKey.length > 20;
 
 let auth = null;
 let googleProvider = null;
+let db = null;
 
 if (isConfigured) {
   try {
@@ -22,6 +23,7 @@ if (isConfigured) {
     };
     const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
+    db = getFirestore(app);
     googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
   } catch (e) {
@@ -29,5 +31,5 @@ if (isConfigured) {
   }
 }
 
-export const firebaseConfigured = isConfigured && auth !== null;
-export { auth, googleProvider };
+export const firebaseConfigured = isConfigured && auth !== null && db !== null;
+export { auth, googleProvider, db };
