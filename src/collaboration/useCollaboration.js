@@ -51,6 +51,22 @@ export function useCollaboration({
     setIsRoomOwner(isOwner);
   }, [isOwner]);
 
+  // Awareness — local user bilgisi değiştiğinde tüm istemcilere anında yayınla
+  useEffect(() => {
+    if (providerRef.current && localUser) {
+      const myId = getUserIdentifier(googleUser || localUser);
+      providerRef.current.awareness.setLocalStateField('user', {
+        uid: localUser.uid || null,
+        name: localUser.name,
+        color: localUser.color,
+        animal: localUser.animal || '🐾',
+        photoURL: localUser.photoURL || null,
+        permission: myPermission,
+        identifier: myId,
+      });
+    }
+  }, [localUser, googleUser, myPermission, getUserIdentifier]);
+
   // --- Refs ---
   const ydocRef = useRef(null);
   const providerRef = useRef(null);

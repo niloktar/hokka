@@ -947,13 +947,36 @@ export default function App() {
 function AppInner({ user, signOutUser }) {
   const [documents, setDocuments] = useState(() => {
     const saved = localStorage.getItem('hokka_docs_v2');
-    return saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
+    const parsed = saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
+
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('docId') || params.get('room');
+    if (roomParam) {
+      const exists = parsed.find(d => d.id === roomParam);
+      if (!exists) {
+        const newSharedDoc = {
+          id: roomParam,
+          title: 'Paylaşılan Belge 📝',
+          content: '',
+          updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          isShared: true,
+        };
+        return [newSharedDoc, ...parsed];
+      }
+    }
+    return parsed;
   });
+
   const [activeId, setActiveId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('docId') || params.get('room');
+    if (roomParam) return roomParam;
+
     const saved = localStorage.getItem('hokka_docs_v2');
     const parsed = saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
     return parsed[0]?.id || '1';
   });
+
   const [theme, setTheme] = useState('coffee');
 
   // URL'den oda linkini oku (mod artık izin haritasından geliyor)
@@ -1029,32 +1052,6 @@ function AppInner({ user, signOutUser }) {
 
   // İzin: oda aktifse collaboration'dan al, yoksa tam erişim
   const isViewOnly = collaboration.roomId ? collaboration.myPermission === 'view' : false;
-
-  // Handle joining from URL parameter
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('docId') || params.get('room'); // Hem docId hem de eski room'u destekle
-    if (roomParam) {
-      setDocuments(prev => {
-        const exists = prev.find(d => d.id === roomParam);
-        if (exists) {
-          setTimeout(() => setActiveId(roomParam), 0);
-          return prev;
-        } else {
-          // Bu oda/belge için yeni bir yerel belge kaydı oluştur
-          const newSharedDoc = {
-            id: roomParam,
-            title: 'Paylaşılan Belge 📝',
-            content: '',
-            updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            isShared: true, // Sahibi olmadığımızı, başkasından gelen link olduğunu işaretliyoruz
-          };
-          setTimeout(() => setActiveId(roomParam), 0);
-          return [newSharedDoc, ...prev];
-        }
-      });
-    }
-  }, []); // Run only once on mount
 
   useEffect(() => {
     localStorage.setItem('hokka_docs_v2', JSON.stringify(documents));
