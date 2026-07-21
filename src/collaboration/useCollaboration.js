@@ -1,19 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { rtdb, firebaseConfigured } from '../firebase';
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
 import {
-  ref,
-  onValue,
-  set,
-  update,
-  remove,
-  onDisconnect,
-} from 'firebase/database';
-import {
+  COLLAB_SERVER_URL,
   generateUserName,
   getAnimalForUser,
   getColorForUser,
   generateRoomId,
+  applyDiff,
   getTextOffset,
+  restoreCursorFromOffset,
 } from './constants';
 
 /**
@@ -55,15 +51,7 @@ function buildLocalUser(googleUser) {
 }
 
 /**
- * sanitizeKey — Firebase Database anahtarındaki geçersiz karakterleri temizler
- */
-function sanitizeKey(str) {
-  if (!str) return 'user_anon';
-  return str.replace(/[.#$/\[\]]/g, '_').toLowerCase().trim();
-}
-
-/**
- * useCollaboration — Firebase Realtime Cloud Engine Collab Hook
+ * useCollaboration — Yjs WebSocket CRDT Collaboration Engine
  */
 export function useCollaboration({
   editorRef,
@@ -73,36 +61,34 @@ export function useCollaboration({
   onRemoteChange,
   onRemoteTitleChange,
   googleUser,
+  isOwner = true,
 }) {
-  const [isConnected, setIsConnected] = useState(true);
-  const [roomId, setRoomId] = useState(activeDocId);
+  const [isConnected, setIsConnected] = useState(false);
+  const [roomId, setRoomId] = useState(null);
   const [localUser, setLocalUser] = useState(() => buildLocalUser(googleUser));
   const [remoteUsers, setRemoteUsers] = useState([]);
   const [permissions, setPermissions] = useState({});
   const [myPermission, setMyPermission] = useState('edit');
-  const [isRoomOwner, setIsRoomOwner] = useState(true);
+  const [isRoomOwner, setIsRoomOwner] = useState(isOwner);
 
-  // Google kullanıcısı değişince localUser güncelle
   useEffect(() => {
     if (googleUser) {
       setLocalUser(buildLocalUser(googleUser));
     }
   }, [googleUser]);
 
-  // Refs
+  const ydocRef = useRef(null);
+  const providerRef = useRef(null);
+  const ytextRef = useRef(null);
+  const ytitleRef = useRef(null);
+  const ypermissionsRef = useRef(null);
   const lastHtmlRef = useRef('');
   const lastTitleRef = useRef(title);
-  const activeDocIdRef = useRef(activeDocId);
   const localUserRef = useRef(localUser);
-  const myPermissionRef = useRef(myPermission);
-  const cursorOffsetRef = useRef(null);
 
   useEffect(() => { localUserRef.current = localUser; }, [localUser]);
-  useEffect(() => { activeDocIdRef.current = activeDocId; }, [activeDocId]);
   useEffect(() => { lastTitleRef.current = title; }, [title]);
-  useEffect(() => { myPermissionRef.current = myPermission; }, [myPermission]);
 
-  // Persist user info
   useEffect(() => {
     localStorage.setItem('hokka_collab_user', JSON.stringify(localUser));
   }, [localUser]);
@@ -115,181 +101,256 @@ export function useCollaboration({
     return user.uid || null;
   }, []);
 
-  // ===============================================
-  // REAL-TIME FIREBASE DATABASE CLOUD ENGINE
-  // ===============================================
+  // Awareness Broadcast Helper
+  const syncAwareness = useCallback(() => {
+    if (providerRef.current && localUserRef.current) {
+      const currentUser = localUserRef.current;
+      const myId = getUserIdentifier(googleUser || currentUser);
+      providerRef.current.awareness.setLocalStateField('user', {
+        uid: currentUser.uid || null,
+        name: currentUser.name,
+        color: currentUser.color,
+        animal: currentUser.animal || '🐾',
+        photoURL: currentUser.photoURL || null,
+        permission: myPermission,
+        identifier: myId,
+      });
+    }
+  }, [googleUser, myPermission, getUserIdentifier]);
+
   useEffect(() => {
-    if (!firebaseConfigured || !rtdb || !activeDocId) return;
+    syncAwareness();
+  }, [syncAwareness]);
 
-    setRoomId(activeDocId);
-    const sanitizedDocId = sanitizeKey(activeDocId);
-    const rawMyId = getUserIdentifier(googleUser || localUser) || ('user_' + Math.random().toString(36).substring(2, 7));
-    const myId = sanitizeKey(rawMyId);
+  const joinRoom = useCallback((roomName) => {
+    if (providerRef.current) providerRef.current.destroy();
+    if (ydocRef.current) ydocRef.current.destroy();
 
-    const docRef = ref(rtdb, `documents/${sanitizedDocId}`);
-    const presenceRef = ref(rtdb, `presence/${sanitizedDocId}`);
-    const myPresenceRef = ref(rtdb, `presence/${sanitizedDocId}/${myId}`);
+    const rid = roomName || generateRoomId();
+    const ydoc = new Y.Doc();
+    const ytext = ydoc.getText('content');
+    const ytitle = ydoc.getText('title');
+    const ypermissions = ydoc.getMap('permissions');
 
-    // A. Real-time Document Content & Permissions Listener
-    const unsubDoc = onValue(docRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        // 1. Title Sync
-        if (data.title && data.title !== lastTitleRef.current) {
-          lastTitleRef.current = data.title;
-          onRemoteTitleChange?.(data.title);
-        }
+    const serverUrl = COLLAB_SERVER_URL;
+    const provider = new WebsocketProvider(serverUrl, `hokka-${rid}`, ydoc);
 
-        // 2. Content Sync
-        if (typeof data.content === 'string' && data.content !== lastHtmlRef.current) {
-          lastHtmlRef.current = data.content;
-          if (editorRef.current && !isUpdatingRef.current) {
-            isUpdatingRef.current = true;
-            editorRef.current.innerHTML = data.content;
-            onRemoteChange?.(data.content);
-            setTimeout(() => { isUpdatingRef.current = false; }, 0);
-          }
-        }
+    ydocRef.current = ydoc;
+    providerRef.current = provider;
+    ytextRef.current = ytext;
+    ytitleRef.current = ytitle;
+    ypermissionsRef.current = ypermissions;
 
-        // 3. Permissions Sync
-        const permMap = data.permissions || {};
-        setPermissions(permMap);
+    setRoomId(rid);
+    setIsConnected(provider.wsconnected);
 
-        const ownerId = data.ownerId;
-        const amOwner = ownerId ? ownerId === myId : true;
-        setIsRoomOwner(amOwner);
-
-        const perm = amOwner ? 'edit' : (permMap[myId] || 'view');
-        setMyPermission(perm);
-      } else {
-        // First time initialization in Cloud Database
-        const initialHtml = editorRef.current?.innerHTML || '';
-        const initialTitle = lastTitleRef.current || 'Untitled Document 📝';
-        set(docRef, {
-          title: initialTitle,
-          content: initialHtml,
-          ownerId: myId,
-          permissions: { [myId]: 'edit' },
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        }).catch(() => {});
-
-        setIsRoomOwner(true);
-        setMyPermission('edit');
-      }
-      setIsConnected(true);
+    provider.on('status', ({ status }) => {
+      setIsConnected(status === 'connected');
     });
 
-    // B. Real-time Presence Listener (Animal avatars & Live Cursors)
-    const unsubPresence = onValue(presenceRef, (snapshot) => {
-      const pData = snapshot.val() || {};
-      const now = Date.now();
-      const users = [];
+    provider.on('sync', (isSynced) => {
+      if (!isSynced) return;
 
-      Object.entries(pData).forEach(([key, userState]) => {
-        if (key !== myId && userState) {
-          if (userState.updatedAt && (now - userState.updatedAt < 20000)) {
-            users.push({
-              clientId: key,
-              name: userState.name || 'Kullanıcı',
-              color: userState.color || '#8b5cf6',
-              animal: userState.animal || '🐾',
-              permission: userState.permission || 'edit',
-              cursor: typeof userState.cursorOffset === 'number' ? { offset: userState.cursorOffset } : null,
-            });
-          }
+      const currentUser = localUserRef.current;
+      const myId = getUserIdentifier(googleUser || currentUser);
+
+      const ownerId = ypermissions.get('__owner');
+      const amOwner = isOwner || (ownerId ? ownerId === myId : true);
+      if (amOwner && myId) {
+        ypermissions.set('__owner', myId);
+        ypermissions.set(myId, 'edit');
+      }
+      setIsRoomOwner(amOwner);
+
+      const permObj = {};
+      ypermissions.forEach((val, key) => { permObj[key] = val; });
+      setPermissions(permObj);
+
+      const myPerm = amOwner ? 'edit' : (ypermissions.get(myId) || 'view');
+      setMyPermission(myPerm);
+
+      // Broadcast awareness
+      provider.awareness.setLocalStateField('user', {
+        uid: currentUser.uid || null,
+        name: currentUser.name,
+        color: currentUser.color,
+        animal: currentUser.animal || '🐾',
+        photoURL: currentUser.photoURL || null,
+        permission: myPerm,
+        identifier: myId,
+      });
+
+      // Synchronize Document Text
+      const currentHtml = editorRef.current?.innerHTML || '';
+      const currentTitle = lastTitleRef.current || 'Untitled Document 📝';
+      const ytextContent = ytext.toString();
+      const ytitleContent = ytitle.toString();
+
+      if (ytextContent === '' && currentHtml !== '') {
+        ytext.insert(0, currentHtml);
+        lastHtmlRef.current = currentHtml;
+      } else if (ytextContent !== '') {
+        if (editorRef.current) {
+          isUpdatingRef.current = true;
+          editorRef.current.innerHTML = ytextContent;
+          lastHtmlRef.current = ytextContent;
+          onRemoteChange?.(ytextContent);
+          setTimeout(() => { isUpdatingRef.current = false; }, 0);
+        }
+      }
+
+      if (ytitleContent === '' && currentTitle !== '') {
+        ytitle.insert(0, currentTitle);
+      } else if (ytitleContent !== '' && ytitleContent !== currentTitle) {
+        onRemoteTitleChange?.(ytitleContent);
+      }
+    });
+
+    // Handle Text Changes
+    ytext.observe((event) => {
+      if (event.transaction.local) return;
+      const newHtml = ytext.toString();
+      if (newHtml === lastHtmlRef.current || !editorRef.current) return;
+
+      lastHtmlRef.current = newHtml;
+      if (isUpdatingRef) isUpdatingRef.current = true;
+
+      const sel = window.getSelection();
+      let currentOffset = null;
+      if (sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
+        currentOffset = getTextOffset(editorRef.current, sel.anchorNode, sel.anchorOffset);
+      }
+
+      editorRef.current.innerHTML = newHtml;
+      onRemoteChange?.(newHtml);
+
+      if (currentOffset !== null) {
+        restoreCursorFromOffset(editorRef.current, currentOffset);
+      }
+
+      if (isUpdatingRef) {
+        setTimeout(() => { isUpdatingRef.current = false; }, 0);
+      }
+    });
+
+    // Handle Title Changes
+    ytitle.observe((event) => {
+      if (event.transaction.local) return;
+      const newTitle = ytitle.toString();
+      if (newTitle !== lastTitleRef.current) {
+        lastTitleRef.current = newTitle;
+        onRemoteTitleChange?.(newTitle);
+      }
+    });
+
+    // Handle Permissions Changes
+    ypermissions.observe(() => {
+      const permObj = {};
+      ypermissions.forEach((val, key) => { permObj[key] = val; });
+      setPermissions(permObj);
+
+      const currentUser = localUserRef.current;
+      const myId = getUserIdentifier(googleUser || currentUser);
+
+      const ownerId = ypermissions.get('__owner');
+      const amOwner = isOwner || (ownerId ? ownerId === myId : true);
+      setIsRoomOwner(amOwner);
+
+      const newPerm = amOwner ? 'edit' : (ypermissions.get(myId) || 'view');
+      setMyPermission(newPerm);
+
+      if (providerRef.current) {
+        const currentState = providerRef.current.awareness.getLocalState()?.user || {};
+        providerRef.current.awareness.setLocalStateField('user', {
+          ...currentState,
+          permission: newPerm,
+        });
+      }
+    });
+
+    // Handle Awareness Changes (Remote User Avatars & Cursors)
+    const onAwarenessChange = () => {
+      const states = provider.awareness.getStates();
+      const users = [];
+      states.forEach((state, clientId) => {
+        if (clientId !== ydoc.clientID && state.user) {
+          users.push({
+            clientId,
+            ...state.user,
+            cursor: state.cursor || null,
+          });
         }
       });
       setRemoteUsers(users);
-    });
-
-    // C. Local Presence Heartbeat & Auto Disconnect Cleanup
-    const updateLocalPresence = () => {
-      const u = localUserRef.current;
-      set(myPresenceRef, {
-        name: u.name,
-        color: u.color,
-        animal: u.animal || '🐾',
-        photoURL: u.photoURL || null,
-        permission: myPermissionRef.current,
-        cursorOffset: cursorOffsetRef.current,
-        updatedAt: Date.now(),
-      }).catch(() => {});
     };
 
-    updateLocalPresence();
-    const heartbeatTimer = setInterval(updateLocalPresence, 4000);
+    provider.awareness.on('change', onAwarenessChange);
+  }, [editorRef, isUpdatingRef, onRemoteChange, onRemoteTitleChange, googleUser, isOwner, getUserIdentifier]);
 
-    // Auto cleanup presence on tab close or disconnect
-    onDisconnect(myPresenceRef).remove();
+  // Auto-join room when activeDocId changes
+  useEffect(() => {
+    if (activeDocId) {
+      joinRoom(activeDocId);
+    }
+  }, [activeDocId, joinRoom]);
 
-    return () => {
-      unsubDoc();
-      unsubPresence();
-      clearInterval(heartbeatTimer);
-      remove(myPresenceRef).catch(() => {});
-    };
-  }, [activeDocId, googleUser, localUser, editorRef, isUpdatingRef, onRemoteChange, onRemoteTitleChange, getUserIdentifier]);
-
-  // --- Actions ---
+  const leaveRoom = useCallback(() => {
+    if (providerRef.current) providerRef.current.destroy();
+    if (ydocRef.current) ydocRef.current.destroy();
+    ydocRef.current = null;
+    providerRef.current = null;
+    ytextRef.current = null;
+    ytitleRef.current = null;
+    ypermissionsRef.current = null;
+    setIsConnected(false);
+    setRoomId(null);
+    setRemoteUsers([]);
+    setPermissions({});
+  }, []);
 
   const addPermission = useCallback((identifier, mode) => {
-    const key = sanitizeKey(identifier);
-    if (!key || !activeDocId || !rtdb) return;
-    const sanitizedDocId = sanitizeKey(activeDocId);
-    const permRef = ref(rtdb, `documents/${sanitizedDocId}/permissions/${key}`);
-    set(permRef, mode).catch(() => {});
-  }, [activeDocId]);
+    if (!ypermissionsRef.current) return;
+    const key = identifier.toLowerCase().trim();
+    if (!key) return;
+    ypermissionsRef.current.set(key, mode);
+  }, []);
 
   const removePermission = useCallback((identifier) => {
-    const key = sanitizeKey(identifier);
-    if (!key || !activeDocId || !rtdb) return;
-    const sanitizedDocId = sanitizeKey(activeDocId);
-    const permRef = ref(rtdb, `documents/${sanitizedDocId}/permissions/${key}`);
-    remove(permRef).catch(() => {});
-  }, [activeDocId]);
+    if (!ypermissionsRef.current) return;
+    ypermissionsRef.current.delete(identifier.toLowerCase().trim());
+  }, []);
 
   const pushLocalChange = useCallback((newHtml) => {
+    if (!ytextRef.current) return;
+    const currentYText = ytextRef.current.toString();
+    if (newHtml === currentYText) return;
+
+    ydocRef.current?.transact(() => {
+      applyDiff(ytextRef.current, currentYText, newHtml);
+    });
     lastHtmlRef.current = newHtml;
-    if (!activeDocId || !rtdb) return;
-    const sanitizedDocId = sanitizeKey(activeDocId);
-    const contentRef = ref(rtdb, `documents/${sanitizedDocId}`);
-    update(contentRef, {
-      content: newHtml,
-      updatedAt: Date.now(),
-    }).catch(() => {});
-  }, [activeDocId]);
+  }, []);
 
   const pushTitleChange = useCallback((newTitle) => {
+    if (!ytitleRef.current) return;
+    const currentYTitle = ytitleRef.current.toString();
+    if (newTitle === currentYTitle) return;
+
+    ydocRef.current?.transact(() => {
+      ytitleRef.current.delete(0, currentYTitle.length);
+      ytitleRef.current.insert(0, newTitle);
+    });
     lastTitleRef.current = newTitle;
-    if (!activeDocId || !rtdb) return;
-    const sanitizedDocId = sanitizeKey(activeDocId);
-    const titleRef = ref(rtdb, `documents/${sanitizedDocId}`);
-    update(titleRef, {
-      title: newTitle,
-      updatedAt: Date.now(),
-    }).catch(() => {});
-  }, [activeDocId]);
+  }, []);
 
   const updateCursorPosition = useCallback(() => {
-    if (!editorRef.current || !activeDocId || !rtdb) return;
+    if (!providerRef.current || !editorRef.current) return;
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
       const offset = getTextOffset(editorRef.current, sel.anchorNode, sel.anchorOffset);
-      cursorOffsetRef.current = offset;
-      const sanitizedDocId = sanitizeKey(activeDocId);
-      const rawMyId = getUserIdentifier(googleUser || localUser) || 'user_anon';
-      const myId = sanitizeKey(rawMyId);
-      const myPresenceRef = ref(rtdb, `presence/${sanitizedDocId}/${myId}`);
-      update(myPresenceRef, {
-        cursorOffset: offset,
-        updatedAt: Date.now(),
-      }).catch(() => {});
+      providerRef.current.awareness.setLocalStateField('cursor', { offset });
     }
-  }, [editorRef, activeDocId, googleUser, localUser, getUserIdentifier]);
-
-  const leaveRoom = useCallback(() => {}, []);
-  const joinRoom = useCallback(() => {}, []);
+  }, [editorRef]);
 
   return {
     isConnected,
