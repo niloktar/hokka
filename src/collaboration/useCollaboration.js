@@ -115,26 +115,22 @@ export function useCollaboration({
       const myId = getUserIdentifier(googleUser || currentUser);
 
       // --- Oda sahibini belirle ---
-      const existingOwner = yowner.toString();
-      let amOwner = false;
-
-      if (existingOwner === '') {
-        // Odayı ilk oluşturan — sahip ol
-        yowner.insert(0, myId || 'unknown');
-        amOwner = true;
-      } else {
-        amOwner = (existingOwner === myId);
+      const ownerId = ypermissions.get('__owner');
+      const amOwner = isOwner || (ownerId ? ownerId === myId : true);
+      if (amOwner && myId) {
+        ypermissions.set('__owner', myId);
+        ypermissions.set(myId, 'edit');
       }
       setIsRoomOwner(amOwner);
 
-      // --- Kendi iznimi belirle ---
-      const myPerm = ypermissions.get(myId) || (amOwner ? 'edit' : 'edit');
-      setMyPermission(myPerm);
-
-      // --- İzin listesini yükle ---
+      // --- İzinleri al ---
       const permObj = {};
       ypermissions.forEach((val, key) => { permObj[key] = val; });
       setPermissions(permObj);
+
+      // --- Kendi iznimi belirle ---
+      const myPerm = amOwner ? 'edit' : (ypermissions.get(myId) || 'view');
+      setMyPermission(myPerm);
 
       // --- Awareness: kullanıcı bilgisi + izni yayınla ---
       provider.awareness.setLocalStateField('user', {
