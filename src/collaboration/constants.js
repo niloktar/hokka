@@ -1,9 +1,6 @@
 // Collaboration Layer — Constants & Utilities
 
-export const COLLAB_SERVER_URL = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'ws://localhost:4444'
-    : 'wss://demos.yjs.dev';
+export const COLLAB_SERVER_URL = 'wss://demos.yjs.dev';
 
 // Kullanıcı renk paleti — birbirinden ayırt edilebilir, premium tonlar
 export const USER_COLORS = [
