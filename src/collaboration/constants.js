@@ -143,11 +143,18 @@ export function restoreCursorFromOffset(container, targetOffset) {
 
 // Get pixel position from text offset (for remote cursor rendering)
 export function getPositionFromOffset(container, offset) {
+  if (!container) return null;
+  
+  // Calculate top/left relative to the position:relative paper parent container
+  const parentRect = container.parentElement?.getBoundingClientRect() || container.getBoundingClientRect();
+
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
   let currentOffset = 0;
   let node;
+  let lastNode = null;
 
   while ((node = walker.nextNode())) {
+    lastNode = node;
     const len = node.textContent.length;
     if (currentOffset + len >= offset) {
       try {
@@ -156,18 +163,44 @@ export function getPositionFromOffset(container, offset) {
         range.collapse(true);
 
         const rect = range.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-
-        return {
-          top: rect.top - containerRect.top,
-          left: rect.left - containerRect.left,
-          height: rect.height || 20,
-        };
+        if (rect.height > 0) {
+          return {
+            top: rect.top - parentRect.top,
+            left: rect.left - parentRect.left,
+            height: rect.height,
+          };
+        }
       } catch {
-        return null;
+        /* fallback */
       }
     }
     currentOffset += len;
   }
-  return null;
+
+  // Fallback for empty text or end of document
+  if (lastNode) {
+    try {
+      const range = document.createRange();
+      range.setStart(lastNode, lastNode.textContent.length);
+      range.collapse(true);
+      const rect = range.getBoundingClientRect();
+      if (rect.height > 0) {
+        return {
+          top: rect.top - parentRect.top,
+          left: rect.left - parentRect.left,
+          height: rect.height,
+        };
+      }
+    } catch {
+      /* fallback */
+    }
+  }
+
+  // Fallback to top-left of container
+  const containerRect = container.getBoundingClientRect();
+  return {
+    top: containerRect.top - parentRect.top,
+    left: containerRect.left - parentRect.left,
+    height: 24,
+  };
 }
