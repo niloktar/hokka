@@ -946,13 +946,56 @@ export default function App() {
 
 function AppInner({ user, signOutUser }) {
   const [documents, setDocuments] = useState(() => {
-    const saved = localStorage.getItem('hokka_docs_v2');
-    return saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
+    try {
+      const saved = localStorage.getItem('hokka_docs_v2');
+      let parsed = INITIAL_DOCUMENTS;
+      if (saved) {
+        const temp = JSON.parse(saved);
+        if (Array.isArray(temp) && temp.length > 0) {
+          parsed = temp;
+        }
+      }
+
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const roomParam = params ? (params.get('docId') || params.get('room')) : null;
+      if (roomParam) {
+        const exists = parsed.find(d => d && d.id === roomParam);
+        if (!exists) {
+          const newSharedDoc = {
+            id: roomParam,
+            title: 'Paylaşılan Belge 📝',
+            content: '',
+            updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            isShared: true,
+          };
+          return [newSharedDoc, ...parsed];
+        }
+      }
+      return parsed;
+    } catch (e) {
+      console.error('Error parsing documents:', e);
+      return INITIAL_DOCUMENTS;
+    }
   });
+
   const [activeId, setActiveId] = useState(() => {
-    const saved = localStorage.getItem('hokka_docs_v2');
-    const parsed = saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
-    return parsed[0]?.id || '1';
+    try {
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const roomParam = params ? (params.get('docId') || params.get('room')) : null;
+      if (roomParam) return roomParam;
+
+      const saved = localStorage.getItem('hokka_docs_v2');
+      if (saved) {
+        const temp = JSON.parse(saved);
+        if (Array.isArray(temp) && temp.length > 0 && temp[0]?.id) {
+          return temp[0].id;
+        }
+      }
+      return INITIAL_DOCUMENTS[0]?.id || '1';
+    } catch (e) {
+      console.error('Error parsing activeId:', e);
+      return '1';
+    }
   });
   const [theme, setTheme] = useState('coffee');
 
