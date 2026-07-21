@@ -92,8 +92,9 @@ export function useCollaboration({
     if (!user) return null;
     // Firebase kullanıcısı → email
     if (user.email) return user.email.toLowerCase();
-    // Anonim → displayName (lowercase, trimmed)
+    // Anonim → displayName veya name (lowercase, trimmed)
     if (user.displayName) return user.displayName.toLowerCase().trim();
+    if (user.name) return user.name.toLowerCase().trim();
     return user.uid || null;
   }, []);
 

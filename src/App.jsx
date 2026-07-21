@@ -946,37 +946,57 @@ export default function App() {
 
 function AppInner({ user, signOutUser }) {
   const [documents, setDocuments] = useState(() => {
-    const saved = localStorage.getItem('hokka_docs_v2');
-    const parsed = saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
-
-    const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('docId') || params.get('room');
-    if (roomParam) {
-      const exists = parsed.find(d => d.id === roomParam);
-      if (!exists) {
-        const newSharedDoc = {
-          id: roomParam,
-          title: 'Paylaşılan Belge 📝',
-          content: '',
-          updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          isShared: true,
-        };
-        return [newSharedDoc, ...parsed];
+    try {
+      const saved = localStorage.getItem('hokka_docs_v2');
+      let parsed = INITIAL_DOCUMENTS;
+      if (saved) {
+        const temp = JSON.parse(saved);
+        if (Array.isArray(temp) && temp.length > 0) {
+          parsed = temp;
+        }
       }
+
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const roomParam = params ? (params.get('docId') || params.get('room')) : null;
+      if (roomParam) {
+        const exists = parsed.find(d => d && d.id === roomParam);
+        if (!exists) {
+          const newSharedDoc = {
+            id: roomParam,
+            title: 'Paylaşılan Belge 📝',
+            content: '',
+            updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            isShared: true,
+          };
+          return [newSharedDoc, ...parsed];
+        }
+      }
+      return parsed;
+    } catch (e) {
+      console.error('Error parsing documents:', e);
+      return INITIAL_DOCUMENTS;
     }
-    return parsed;
   });
 
   const [activeId, setActiveId] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('docId') || params.get('room');
-    if (roomParam) return roomParam;
+    try {
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const roomParam = params ? (params.get('docId') || params.get('room')) : null;
+      if (roomParam) return roomParam;
 
-    const saved = localStorage.getItem('hokka_docs_v2');
-    const parsed = saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
-    return parsed[0]?.id || '1';
+      const saved = localStorage.getItem('hokka_docs_v2');
+      if (saved) {
+        const temp = JSON.parse(saved);
+        if (Array.isArray(temp) && temp.length > 0 && temp[0]?.id) {
+          return temp[0].id;
+        }
+      }
+      return INITIAL_DOCUMENTS[0]?.id || '1';
+    } catch (e) {
+      console.error('Error parsing activeId:', e);
+      return '1';
+    }
   });
-
   const [theme, setTheme] = useState('coffee');
 
   // URL'den oda linkini oku (mod artık izin haritasından geliyor)
@@ -1047,11 +1067,35 @@ function AppInner({ user, signOutUser }) {
     onRemoteChange: handleRemoteChange,
     onRemoteTitleChange: handleRemoteTitleChange,
     googleUser: user,
-    isOwner: !activeDoc.isShared,
   });
 
   // İzin: oda aktifse collaboration'dan al, yoksa tam erişim
   const isViewOnly = collaboration.roomId ? collaboration.myPermission === 'view' : false;
+
+  // Handle joining from URL parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      setDocuments(prev => {
+        const exists = prev.find(d => d.id === roomParam);
+        if (exists) {
+          setTimeout(() => setActiveId(roomParam), 0);
+          return prev;
+        } else {
+          // Create a new document for this room
+          const newSharedDoc = {
+            id: roomParam,
+            title: 'Shared Document',
+            content: '',
+            updatedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          };
+          setTimeout(() => setActiveId(roomParam), 0);
+          return [newSharedDoc, ...prev];
+        }
+      });
+    }
+  }, []); // Run only once on mount
 
   useEffect(() => {
     localStorage.setItem('hokka_docs_v2', JSON.stringify(documents));
@@ -1118,12 +1162,7 @@ function AppInner({ user, signOutUser }) {
       const colorVal = document.queryCommandValue('foreColor');
       setSelectedTextColor(rgbToHex(colorVal));
     } catch (e) {}
-    
-    // Yjs collaboration: sync cursor position when formatting/selection updates
-    if (collaboration && collaboration.updateCursorPosition) {
-      collaboration.updateCursorPosition();
-    }
-  }, [collaboration.updateCursorPosition]);
+  }, []);
 
   const handleEditorInput = useCallback(() => {
     if (!editorRef.current) return;
