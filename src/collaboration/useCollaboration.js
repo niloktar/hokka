@@ -1,31 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
-import { db, firebaseConfigured } from '../firebase';
+import Peer from 'peerjs';
 import {
-  doc,
-  collection,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  deleteField,
-  serverTimestamp,
-} from 'firebase/firestore';
-import {
-  COLLAB_SERVER_URL,
   generateUserName,
-  getRandomColor,
   getAnimalForUser,
   getColorForUser,
   generateRoomId,
-  applyDiff,
   getTextOffset,
-  restoreCursorFromOffset,
 } from './constants';
 
 /**
- * buildLocalUser — Kullanıcı bilgilerini hazırlar
+ * buildLocalUser — Kullanıcı profil bilgilerini hazırlar
  */
 function buildLocalUser(googleUser) {
   const saved = localStorage.getItem('hokka_collab_user');
@@ -63,7 +47,7 @@ function buildLocalUser(googleUser) {
 }
 
 /**
- * useCollaboration — Ana ortak çalışma hook'u (Firestore + Yjs Dual Provider)
+ * useCollaboration — WebRTC P2P Direct Real-time Collaboration Engine
  */
 export function useCollaboration({
   editorRef,
@@ -74,8 +58,7 @@ export function useCollaboration({
   onRemoteTitleChange,
   googleUser,
 }) {
-  // --- State ---
-  const [isConnected, setIsConnected] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
   const [roomId, setRoomId] = useState(activeDocId);
   const [localUser, setLocalUser] = useState(() => buildLocalUser(googleUser));
   const [remoteUsers, setRemoteUsers] = useState([]);
@@ -90,25 +73,28 @@ export function useCollaboration({
     }
   }, [googleUser]);
 
-  // --- Refs ---
+  // Refs
+  const peerRef = useRef(null);
+  const connectionsRef = useRef([]); // Active WebRTC DataConnections
   const lastHtmlRef = useRef('');
   const lastTitleRef = useRef(title);
-  const activeDocIdRef = useRef(activeDocId);
   const localUserRef = useRef(localUser);
+  const permissionsRef = useRef(permissions);
   const myPermissionRef = useRef(myPermission);
+  const isOwnerRef = useRef(isRoomOwner);
   const cursorOffsetRef = useRef(null);
 
   useEffect(() => { localUserRef.current = localUser; }, [localUser]);
-  useEffect(() => { activeDocIdRef.current = activeDocId; }, [activeDocId]);
-  useEffect(() => { lastTitleRef.current = title; }, [title]);
+  useEffect(() => { permissionsRef.current = permissions; }, [permissions]);
   useEffect(() => { myPermissionRef.current = myPermission; }, [myPermission]);
+  useEffect(() => { isOwnerRef.current = isRoomOwner; }, [isRoomOwner]);
+  useEffect(() => { lastTitleRef.current = title; }, [title]);
 
-  // Persist user info
+  // Persist local user
   useEffect(() => {
     localStorage.setItem('hokka_collab_user', JSON.stringify(localUser));
   }, [localUser]);
 
-  // --- Kullanıcı tanımlayıcısı: email varsa email, yoksa ad ---
   const getUserIdentifier = useCallback((user) => {
     if (!user) return null;
     if (user.email) return user.email.toLowerCase();
@@ -117,29 +103,59 @@ export function useCollaboration({
     return user.uid || null;
   }, []);
 
-  // ==========================================
-  // 1. FIRESTORE REAL-TIME PROVIDER (PRIMARY)
-  // ==========================================
-  useEffect(() => {
-    if (!firebaseConfigured || !db || !activeDocId) return;
+  // Broadcast data packet to ALL connected peers
+  const broadcast = useCallback((data) => {
+    connectionsRef.current.forEach((conn) => {
+      if (conn.open) {
+        try { conn.send(data); } catch (e) {}
+      }
+    });
+  }, []);
 
-    setRoomId(activeDocId);
-    const myId = getUserIdentifier(googleUser || localUser) || 'user_' + Math.random().toString(36).substring(2, 7);
-    const docRef = doc(db, 'hokka_documents', activeDocId);
-    const presenceCollRef = collection(db, 'hokka_documents', activeDocId, 'presence');
+  // Update list of remote users from active connections
+  const updateRemoteUsersList = useCallback(() => {
+    const activePeers = connectionsRef.current
+      .filter(c => c.open && c.peerUser)
+      .map(c => ({
+        clientId: c.peer,
+        name: c.peerUser.name || 'Kullanıcı',
+        color: c.peerUser.color || '#8b5cf6',
+        animal: c.peerUser.animal || '🐾',
+        permission: c.peerUser.permission || 'edit',
+        cursor: typeof c.peerCursor === 'number' ? { offset: c.peerCursor } : null,
+      }));
+    setRemoteUsers(activePeers);
+  }, []);
 
-    // A. Document Content & Permissions Snapshot Listener
-    const unsubDoc = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+  // Handle incoming message from a peer
+  const handlePeerData = useCallback((conn, data) => {
+    if (!data || !data.type) return;
 
-        // 1. Title Sync
+    switch (data.type) {
+      case 'JOIN_REQUEST':
+      case 'PRESENCE': {
+        conn.peerUser = data.user;
+        updateRemoteUsersList();
+
+        // If I am host/owner or have content, reply with my presence & current document state
+        if (data.type === 'JOIN_REQUEST') {
+          conn.send({
+            type: 'SYNC_STATE',
+            title: lastTitleRef.current || 'Untitled Document 📝',
+            content: editorRef.current?.innerHTML || lastHtmlRef.current || '',
+            permissions: permissionsRef.current,
+            ownerUser: localUserRef.current,
+          });
+        }
+        break;
+      }
+
+      case 'SYNC_STATE': {
+        // We received the document state from the host/peer!
         if (data.title && data.title !== lastTitleRef.current) {
           lastTitleRef.current = data.title;
           onRemoteTitleChange?.(data.title);
         }
-
-        // 2. Content Sync
         if (typeof data.content === 'string' && data.content !== lastHtmlRef.current) {
           lastHtmlRef.current = data.content;
           if (editorRef.current && !isUpdatingRef.current) {
@@ -149,153 +165,202 @@ export function useCollaboration({
             setTimeout(() => { isUpdatingRef.current = false; }, 0);
           }
         }
-
-        // 3. Permissions Sync
-        const permMap = data.permissions || {};
-        setPermissions(permMap);
-
-        const ownerId = data.ownerId;
-        const amOwner = ownerId ? ownerId === myId : true;
-        setIsRoomOwner(amOwner);
-
-        const perm = amOwner ? 'edit' : (permMap[myId] || 'view');
-        setMyPermission(perm);
-      } else {
-        // Document does not exist in Firestore → Create initial cloud entry
-        const initialHtml = editorRef.current?.innerHTML || '';
-        const initialTitle = lastTitleRef.current || 'Untitled Document 📝';
-        setDoc(docRef, {
-          title: initialTitle,
-          content: initialHtml,
-          ownerId: myId,
-          permissions: { [myId]: 'edit' },
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        }).catch(err => console.warn('Firestore doc create error:', err));
-
-        setIsRoomOwner(true);
-        setMyPermission('edit');
+        if (data.permissions) {
+          setPermissions(data.permissions);
+        }
+        // Send back our presence to complete handshake
+        conn.send({
+          type: 'PRESENCE',
+          user: {
+            ...localUserRef.current,
+            permission: myPermissionRef.current,
+          },
+        });
+        break;
       }
-      setIsConnected(true);
-    }, (err) => {
-      console.warn('Firestore doc snapshot error:', err);
-    });
 
-    // B. Presence Snapshot Listener (Animal avatars & Remote cursors)
-    const unsubPresence = onSnapshot(presenceCollRef, (presenceSnap) => {
-      const now = Date.now();
-      const users = [];
-      presenceSnap.forEach((pSnap) => {
-        if (pSnap.id !== myId) {
-          const pData = pSnap.data();
-          // Keep users active within last 20 seconds
-          if (pData.updatedAt && (now - pData.updatedAt < 20000)) {
-            users.push({
-              clientId: pSnap.id,
-              name: pData.name || 'Kullanıcı',
-              color: pData.color || '#8b5cf6',
-              animal: pData.animal || '🐾',
-              permission: pData.permission || 'edit',
-              cursor: typeof pData.cursorOffset === 'number' ? { offset: pData.cursorOffset } : null,
-            });
+      case 'CONTENT_CHANGE': {
+        if (typeof data.html === 'string' && data.html !== lastHtmlRef.current) {
+          lastHtmlRef.current = data.html;
+          if (editorRef.current && !isUpdatingRef.current) {
+            isUpdatingRef.current = true;
+            editorRef.current.innerHTML = data.html;
+            onRemoteChange?.(data.html);
+            setTimeout(() => { isUpdatingRef.current = false; }, 0);
           }
         }
+        break;
+      }
+
+      case 'TITLE_CHANGE': {
+        if (data.title && data.title !== lastTitleRef.current) {
+          lastTitleRef.current = data.title;
+          onRemoteTitleChange?.(data.title);
+        }
+        break;
+      }
+
+      case 'CURSOR_MOVE': {
+        conn.peerCursor = data.offset;
+        updateRemoteUsersList();
+        break;
+      }
+
+      case 'PERMISSIONS_UPDATE': {
+        setPermissions(data.permissions || {});
+        const myId = getUserIdentifier(googleUser || localUserRef.current);
+        const newPerm = isOwnerRef.current ? 'edit' : (data.permissions?.[myId] || 'view');
+        setMyPermission(newPerm);
+        break;
+      }
+
+      default:
+        break;
+    }
+  }, [editorRef, isUpdatingRef, onRemoteChange, onRemoteTitleChange, updateRemoteUsersList, googleUser, getUserIdentifier]);
+
+  // Setup connection handlers for a DataConnection
+  const setupConnection = useCallback((conn) => {
+    // Avoid duplicate connections
+    const existingIdx = connectionsRef.current.findIndex(c => c.peer === conn.peer);
+    if (existingIdx !== -1) {
+      connectionsRef.current[existingIdx].close();
+      connectionsRef.current.splice(existingIdx, 1);
+    }
+    connectionsRef.current.push(conn);
+
+    conn.on('open', () => {
+      setIsConnected(true);
+      // Send JOIN_REQUEST with our user profile
+      conn.send({
+        type: 'JOIN_REQUEST',
+        user: {
+          ...localUserRef.current,
+          permission: myPermissionRef.current,
+        },
       });
-      setRemoteUsers(users);
-    }, (err) => {
-      console.warn('Firestore presence snapshot error:', err);
     });
 
-    // C. Local Presence Heartbeat
-    const updateLocalPresence = () => {
-      const u = localUserRef.current;
-      const pDocRef = doc(db, 'hokka_documents', activeDocId, 'presence', myId);
-      setDoc(pDocRef, {
-        name: u.name,
-        color: u.color,
-        animal: u.animal || '🐾',
-        photoURL: u.photoURL || null,
-        permission: myPermissionRef.current,
-        cursorOffset: cursorOffsetRef.current,
-        updatedAt: Date.now(),
-      }, { merge: true }).catch(() => {});
-    };
+    conn.on('data', (data) => {
+      handlePeerData(conn, data);
+    });
 
-    updateLocalPresence();
-    const heartbeatTimer = setInterval(updateLocalPresence, 4000);
+    conn.on('close', () => {
+      connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
+      updateRemoteUsersList();
+      if (connectionsRef.current.length === 0) {
+        setIsConnected(false);
+      }
+    });
 
-    // Cleanup on unmount or activeDocId change
+    conn.on('error', () => {
+      connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
+      updateRemoteUsersList();
+    });
+  }, [handlePeerData, updateRemoteUsersList]);
+
+  // Initialize WebRTC Peer Node for activeDocId
+  useEffect(() => {
+    if (!activeDocId) return;
+
+    setRoomId(activeDocId);
+    const sanitizedDocId = activeDocId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const myId = getUserIdentifier(googleUser || localUser) || 'user_' + Math.random().toString(36).substring(2, 7);
+    const sanitizedMyId = myId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    // Deterministic Peer ID for Host vs Peer
+    const peerId = `hokka_${sanitizedDocId}_${sanitizedMyId}`;
+    const hostPeerId = `hokka_${sanitizedDocId}_host`;
+
+    const peer = new Peer(peerId, {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+        ],
+      },
+    });
+
+    peerRef.current = peer;
+
+    peer.on('open', () => {
+      setIsConnected(true);
+
+      // If I am NOT the host, connect to the Host peer!
+      if (peerId !== hostPeerId) {
+        const conn = peer.connect(hostPeerId, { reliable: true });
+        setupConnection(conn);
+      } else {
+        setIsRoomOwner(true);
+      }
+    });
+
+    // Listen for incoming peer connections
+    peer.on('connection', (conn) => {
+      setupConnection(conn);
+    });
+
+    peer.on('error', (err) => {
+      // If host ID was taken, fallback gracefully
+      if (err.type === 'unavailable-id') {
+        // We are a guest connecting to the existing host!
+      }
+      console.warn('WebRTC Peer warning:', err.type);
+    });
+
     return () => {
-      unsubDoc();
-      unsubPresence();
-      clearInterval(heartbeatTimer);
-      // Remove presence entry on leave
-      const pDocRef = doc(db, 'hokka_documents', activeDocId, 'presence', myId);
-      deleteDoc(pDocRef).catch(() => {});
+      connectionsRef.current.forEach(c => c.close());
+      connectionsRef.current = [];
+      peer.destroy();
+      peerRef.current = null;
+      setIsConnected(false);
+      setRemoteUsers([]);
     };
-  }, [activeDocId, googleUser, localUser, editorRef, isUpdatingRef, onRemoteChange, onRemoteTitleChange, getUserIdentifier]);
+  }, [activeDocId, googleUser, localUser, setupConnection, getUserIdentifier]);
 
   // --- Actions ---
 
-  /** Belirli bir kişiye izin ver (Firestore) */
   const addPermission = useCallback((identifier, mode) => {
     const key = identifier.toLowerCase().trim();
-    if (!key || !activeDocId || !db) return;
-    const docRef = doc(db, 'hokka_documents', activeDocId);
-    updateDoc(docRef, {
-      [`permissions.${key}`]: mode,
-      updatedAt: Date.now(),
-    }).catch(err => console.warn('addPermission error:', err));
-  }, [activeDocId]);
+    if (!key) return;
+    setPermissions(prev => {
+      const updated = { ...prev, [key]: mode };
+      broadcast({ type: 'PERMISSIONS_UPDATE', permissions: updated });
+      return updated;
+    });
+  }, [broadcast]);
 
-  /** Kişinin iznini kaldır (Firestore) */
   const removePermission = useCallback((identifier) => {
     const key = identifier.toLowerCase().trim();
-    if (!key || !activeDocId || !db) return;
-    const docRef = doc(db, 'hokka_documents', activeDocId);
-    updateDoc(docRef, {
-      [`permissions.${key}`]: deleteField(),
-      updatedAt: Date.now(),
-    }).catch(err => console.warn('removePermission error:', err));
-  }, [activeDocId]);
+    if (!key) return;
+    setPermissions(prev => {
+      const updated = { ...prev };
+      delete updated[key];
+      broadcast({ type: 'PERMISSIONS_UPDATE', permissions: updated });
+      return updated;
+    });
+  }, [broadcast]);
 
-  /** Yerel metin değişikliğini Firestore'a gönder */
   const pushLocalChange = useCallback((newHtml) => {
     lastHtmlRef.current = newHtml;
-    if (!activeDocId || !db) return;
-    const docRef = doc(db, 'hokka_documents', activeDocId);
-    updateDoc(docRef, {
-      content: newHtml,
-      updatedAt: Date.now(),
-    }).catch(err => console.warn('pushLocalChange error:', err));
-  }, [activeDocId]);
+    broadcast({ type: 'CONTENT_CHANGE', html: newHtml });
+  }, [broadcast]);
 
-  /** Yerel başlık değişikliğini Firestore'a gönder */
   const pushTitleChange = useCallback((newTitle) => {
     lastTitleRef.current = newTitle;
-    if (!activeDocId || !db) return;
-    const docRef = doc(db, 'hokka_documents', activeDocId);
-    updateDoc(docRef, {
-      title: newTitle,
-      updatedAt: Date.now(),
-    }).catch(err => console.warn('pushTitleChange error:', err));
-  }, [activeDocId]);
+    broadcast({ type: 'TITLE_CHANGE', title: newTitle });
+  }, [broadcast]);
 
-  /** İmleç konumunu Firestore presence'e anlık yayınla */
   const updateCursorPosition = useCallback(() => {
-    if (!editorRef.current || !activeDocId || !db) return;
+    if (!editorRef.current) return;
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
       const offset = getTextOffset(editorRef.current, sel.anchorNode, sel.anchorOffset);
       cursorOffsetRef.current = offset;
-      const myId = getUserIdentifier(googleUser || localUser) || 'user_anon';
-      const pDocRef = doc(db, 'hokka_documents', activeDocId, 'presence', myId);
-      updateDoc(pDocRef, {
-        cursorOffset: offset,
-        updatedAt: Date.now(),
-      }).catch(() => {});
+      broadcast({ type: 'CURSOR_MOVE', offset });
     }
-  }, [editorRef, activeDocId, googleUser, localUser, getUserIdentifier]);
+  }, [editorRef, broadcast]);
 
   const leaveRoom = useCallback(() => {}, []);
   const joinRoom = useCallback(() => {}, []);
