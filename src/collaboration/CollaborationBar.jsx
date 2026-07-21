@@ -148,78 +148,61 @@ export default function CollaborationBar({ collaboration, theme }) {
             </button>
           </div>
 
-          {/* Sadece oda sahibi kişi ekleyebilir */}
-          {isRoomOwner ? (
-            <>
-              <div className="perm-section-title">Kullanıcı Ekle</div>
+          {/* Kullanıcı Ekle Formu ve İzin Paneli (Her Zaman Açık) */}
+          <div className="perm-section-title">Kullanıcı Ekle</div>
 
-              <form onSubmit={handleAddPermission} className="perm-add-form">
-                <input
-                  type="text"
-                  value={permIdentifier}
-                  onChange={e => { setPermIdentifier(e.target.value); setPermError(''); }}
-                  placeholder="E-posta adresi veya kullanıcı adı"
-                  className={`perm-identifier-input ${theme.selectBg}`}
-                  style={{ borderColor: 'inherit' }}
-                />
-                <select
-                  value={permMode}
-                  onChange={e => setPermMode(e.target.value)}
-                  className={`perm-mode-select ${theme.selectBg}`}
-                  style={{ borderColor: 'inherit' }}
-                >
-                  <option value="edit">✏️ Düzenleyebilir</option>
-                  <option value="view">👁️ Görüntüleyebilir</option>
-                </select>
-                <button type="submit" className="perm-add-btn">
-                  {permAdded ? 'Eklendi ✓' : 'Ekle'}
-                </button>
-              </form>
+          <form onSubmit={handleAddPermission} className="perm-add-form">
+            <input
+              type="text"
+              value={permIdentifier}
+              onChange={e => { setPermIdentifier(e.target.value); setPermError(''); }}
+              placeholder="E-posta adresi veya kullanıcı adı"
+              className={`perm-identifier-input ${theme.selectBg}`}
+              style={{ borderColor: 'inherit' }}
+            />
+            <select
+              value={permMode}
+              onChange={e => setPermMode(e.target.value)}
+              className={`perm-mode-select ${theme.selectBg}`}
+              style={{ borderColor: 'inherit' }}
+            >
+              <option value="edit">✏️ Düzenleyebilir</option>
+              <option value="view">👁️ Görüntüleyebilir</option>
+            </select>
+            <button type="submit" className="perm-add-btn">
+              {permAdded ? 'Eklendi ✓' : 'Ekle'}
+            </button>
+          </form>
 
-              {permError && <div className="perm-error">{permError}</div>}
+          {permError && <div className="perm-error">{permError}</div>}
 
-              {/* Erişim Listesi */}
-              {permEntries.length > 0 && (
-                <div className="perm-list">
-                  <div className="perm-section-title" style={{ marginBottom: 6 }}>Erişimi Olan Kişiler</div>
-                  {permEntries.map(([id, mode]) => (
-                    <div key={id} className="perm-list-item">
-                      <span className="perm-list-mode-badge">
-                        {mode === 'edit' ? '✏️' : '👁️'}
-                      </span>
-                      <span className="perm-list-id" title={id}>{id}</span>
-                      <span className="perm-list-mode-text">{mode === 'edit' ? 'Düzenleyebilir' : 'Görüntüleyebilir'}</span>
-                      <button
-                        className="perm-remove-btn"
-                        onClick={() => removePermission(id)}
-                        title="Erişimi kaldır"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+          {/* Erişim Listesi */}
+          {permEntries.length > 0 && (
+            <div className="perm-list">
+              <div className="perm-section-title" style={{ marginBottom: 6 }}>Erişimi Olan Kişiler</div>
+              {permEntries.map(([id, mode]) => (
+                <div key={id} className="perm-list-item">
+                  <span className="perm-list-mode-badge">
+                    {mode === 'edit' ? '✏️' : '👁️'}
+                  </span>
+                  <span className="perm-list-id" title={id}>{id}</span>
+                  <span className="perm-list-mode-text">{mode === 'edit' ? 'Düzenleyebilir' : 'Görüntüleyebilir'}</span>
+                  <button
+                    className="perm-remove-btn"
+                    onClick={() => removePermission(id)}
+                    title="Erişimi kaldır"
+                  >
+                    ×
+                  </button>
                 </div>
-              )}
+              ))}
+            </div>
+          )}
 
-              {permEntries.length === 0 && (
-                <div className="perm-empty-note">
-                  Henüz kimseye özel erişim izni tanımlanmadı.<br />
-                  Bağlantıya sahip herkes düzenleyebilir.
-                </div>
-              )}
-            </>
-          ) : (
-            /* Oda sahibi değilse sadece kendi iznini gösterir */
-            <div className="perm-my-permission-box" data-mode={myPermission} style={{ marginTop: 8 }}>
-              <span style={{ fontSize: 20 }}>{myPermission === 'edit' ? '✏️' : '👁️'}</span>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 12 }}>
-                  {myPermission === 'edit' ? 'Düzenleme Yetkiniz Var' : 'Görüntüleme Yetkiniz Var'}
-                </div>
-                <div style={{ fontSize: 10, opacity: 0.5 }}>
-                  {myPermission === 'edit' ? 'Belgede serbestçe değişiklik yapabilirsiniz.' : 'Belgeyi sadece okuyabilirsiniz.'}
-                </div>
-              </div>
+          {permEntries.length === 0 && (
+            <div className="perm-empty-note">
+              Henüz kimseye özel erişim izni tanımlanmadı.<br />
+              Bağlantıya sahip herkes düzenleyebilir.
             </div>
           )}
         </div>
